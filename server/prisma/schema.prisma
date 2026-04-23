@@ -11,3 +11,66 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+// 👤 USER
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      Role     @default(USER)
+
+  bookings  Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 🏸 COURT
+model Court {
+  id          String   @id @default(uuid())
+  name        String
+  location    String
+  pricePerHour Float
+
+  bookings    Booking[]
+
+  createdAt   DateTime @default(now())
+}
+model TimeSlot {
+  id        String   @id @default(uuid())
+  startTime DateTime
+  endTime   DateTime
+
+  bookings  Booking[]
+}
+model Booking {
+  id         String        @id @default(uuid())
+
+  userId     String
+  courtId    String
+  timeSlotId String
+
+  date       DateTime
+
+  status     BookingStatus @default(PENDING)
+
+  user       User     @relation(fields: [userId], references: [id])
+  court      Court    @relation(fields: [courtId], references: [id])
+  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
+
+  createdAt  DateTime @default(now())
+
+  @@unique([courtId, timeSlotId, date])
+}

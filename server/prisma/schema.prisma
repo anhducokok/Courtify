@@ -4,8 +4,7 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -23,21 +22,22 @@ enum BookingStatus {
   CANCELLED
 }
 
-// 👤 USER
+//  USER
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  role      Role     @default(USER)
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String
+  name            String?
+  role            Role      @default(USER)
+  refreshToken    String?   @db.Text
 
-  bookings  Booking[]
+  bookings        Booking[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
-// 🏸 COURT
+// COURT
 model Court {
   id          String   @id @default(uuid())
   name        String
@@ -55,6 +55,8 @@ model TimeSlot {
 
   bookings  Booking[]
 }
+
+// booking
 model Booking {
   id         String        @id @default(uuid())
 

@@ -39,14 +39,20 @@ model User {
 
 // COURT
 model Court {
-  id          String   @id @default(uuid())
-  name        String
-  location    String
-  pricePerHour Float
+  id            String   @id @default(uuid())
+  name          String
+  location      String
+  pricePerHour  Float
+  hasLED        Boolean  @default(false)
+  surfaceType   String?
+  averageRating Float    @default(0)
+  reviewCount   Int      @default(0)
+  latitude      Float?
+  longitude     Float?
 
-  bookings    Booking[]
+  bookings      Booking[]
 
-  createdAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
 }
 model TimeSlot {
   id        String   @id @default(uuid())

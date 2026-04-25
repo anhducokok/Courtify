@@ -1,32 +1,42 @@
-'use client';
+"use client";
 
-import { useMutation } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
-import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useMutation } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
-import { authService, type RegisterInput } from '@/services/auth.service';
+import { authService, type RegisterInput } from "@/services/auth.service";
 
 function parseError(err: unknown): Error {
   if (isAxiosError(err)) {
     const msg = err.response?.data?.message;
-    const text = Array.isArray(msg) ? msg.join(', ') : (msg ?? err.message);
+    const text = Array.isArray(msg) ? msg.join(", ") : (msg ?? err.message);
     return new Error(text);
   }
   if (err instanceof Error) return err;
-  return new Error('Something went wrong');
+  return new Error("Something went wrong");
 }
 
 export function useLoginMutation() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const result = await signIn('credentials', { email, password, redirect: false });
+    mutationFn: async ({
+      email,
+      password,
+    }: {
+      email: string;
+      password: string;
+    }) => {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
       if (result?.error) throw new Error(result.error);
       return result;
     },
-    onSuccess: () => router.push('/dashboard'),
+    onSuccess: () => router.push("/courts"),
   });
 }
 
@@ -41,7 +51,7 @@ export function useRegisterMutation() {
         throw parseError(err);
       }
 
-      const result = await signIn('credentials', {
+      const result = await signIn("credentials", {
         email: input.email,
         password: input.password,
         redirect: false,
@@ -49,6 +59,6 @@ export function useRegisterMutation() {
       if (result?.error) throw new Error(result.error);
       return result;
     },
-    onSuccess: () => router.push('/dashboard'),
+    onSuccess: () => router.push("/courts"),
   });
 }

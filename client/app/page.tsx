@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
+import { useRouter } from 'next/navigation';
 import { HomeNavbar } from '@/components/home/navbar';
 import { HeroSearch } from '@/components/home/hero-search';
 import { FilterChips } from '@/components/home/filter-chips';
@@ -8,6 +9,15 @@ import { CourtCard, type Court } from '@/components/home/court-card';
 import { CourtMap } from '@/components/home/court-map';
 import { useCourts } from '@/hooks/use-courts';
 import { Footer } from '@/components/home/footer';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import type { ApiCourt, QueryCourtsParams } from '@/types/court';
 
 function toCourtCard(c: ApiCourt): Court {
@@ -32,22 +42,49 @@ function filterToParams(filter: string, date?: string): Partial<QueryCourtsParam
   }
 }
 
-const SKELETON_COUNT = 4;
+const PAGE_SIZE = 5;
+const SKELETON_COUNT = PAGE_SIZE;
+
+function getPageRange(current: number, total: number): (number | 'ellipsis')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | 'ellipsis')[] = [1];
+  if (current > 3) pages.push('ellipsis');
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.push(i);
+  }
+  if (current < total - 2) pages.push('ellipsis');
+  pages.push(total);
+  return pages;
+}
+
+function useIsDesktop() {
+  return useSyncExternalStore(
+    (callback) => {
+      const mq = window.matchMedia('(min-width: 1024px)');
+      mq.addEventListener('change', callback);
+      return () => mq.removeEventListener('change', callback);
+    },
+    () => window.matchMedia('(min-width: 1024px)').matches,
+    () => false,
+  );
+}
 
 export default function HomePage() {
+  const router = useRouter();
+  const isDesktop = useIsDesktop();
   const [filter, setFilter] = useState('all');
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const [searchParams, setSearchParams] = useState<Partial<QueryCourtsParams>>({});
   const [page, setPage] = useState(1);
 
   const filterParams = filterToParams(filter, searchParams.date);
-  const queryParams: QueryCourtsParams = { ...searchParams, ...filterParams, page, limit: 10 };
+  const queryParams: QueryCourtsParams = { ...searchParams, ...filterParams, page, limit: PAGE_SIZE };
 
   const { data, isLoading, isError } = useCourts(queryParams);
 
   const courts = data?.data ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / (queryParams.limit ?? 10)));
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   function handleSearch(params: { location: string; date: string; time: string }) {
     setSearchParams({
@@ -74,7 +111,7 @@ export default function HomePage() {
         {/* Two-column layout */}
         <div className="flex gap-6 flex-1">
           {/* Court list */}
-          <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-280px)] pr-1">
+          <div className="flex-1 flex flex-col gap-3">
             {isLoading ? (
               Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                 <div
@@ -106,47 +143,71 @@ export default function HomePage() {
                   <CourtCard
                     key={court.id}
                     court={toCourtCard(court)}
-                    selected={selectedId === court.id}
-                    onClick={() => setSelectedId(court.id === selectedId ? undefined : court.id)}
+                    selected={isDesktop && selectedId === court.id}
+                    onClick={() =>
+                      isDesktop
+                        ? setSelectedId(court.id === selectedId ? undefined : court.id)
+                        : router.push(`/courts/${court.id}`)
+                    }
                   />
                 ))}
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-3 pt-2 pb-4">
-                    <button
-                      type="button"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => p - 1)}
-                      className="px-4 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:border-[#0F6E56] hover:text-[#0F6E56] transition-colors"
-                    >
-                      ← Trước
-                    </button>
-                    <span className="text-sm text-gray-500">
-                      {page} / {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={page >= totalPages}
-                      onClick={() => setPage((p) => p + 1)}
-                      className="px-4 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:border-[#0F6E56] hover:text-[#0F6E56] transition-colors"
-                    >
-                      Tiếp →
-                    </button>
-                  </div>
+                  <Pagination className="pt-2 pb-4">
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          text="Trước"
+                          onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }}
+                          aria-disabled={page <= 1}
+                          className={page <= 1 ? 'pointer-events-none opacity-40' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+
+                      {getPageRange(page, totalPages).map((item, i) =>
+                        item === 'ellipsis' ? (
+                          <PaginationItem key={`ellipsis-${i}`}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        ) : (
+                          <PaginationItem key={item}>
+                            <PaginationLink
+                              isActive={item === page}
+                              onClick={(e) => { e.preventDefault(); setPage(item); }}
+                              className="cursor-pointer"
+                            >
+                              {item}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      )}
+
+                      <PaginationItem>
+                        <PaginationNext
+                          text="Tiếp"
+                          onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }}
+                          aria-disabled={page >= totalPages}
+                          className={page >= totalPages ? 'pointer-events-none opacity-40' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
                 )}
               </>
             )}
           </div>
 
-          {/* Map */}
-          <div className="hidden lg:block w-[380px] shrink-0 sticky top-[72px] self-start h-[calc(100vh-200px)]">
-            <CourtMap
-              courts={courts}
-              selectedId={selectedId}
-              onSelect={(id) => setSelectedId(id === selectedId ? undefined : id)}
-            />
-          </div>
+          {/* Map – only mounted on desktop to avoid Leaflet zero-size errors */}
+          {isDesktop && (
+            <div className="w-[380px] shrink-0 sticky top-[72px] self-start h-[calc(100vh-200px)]">
+              <CourtMap
+                courts={courts}
+                selectedId={selectedId}
+                onSelect={(id) => setSelectedId(id === selectedId ? undefined : id)}
+              />
+            </div>
+          )}
         </div>
       </main>
       <Footer />

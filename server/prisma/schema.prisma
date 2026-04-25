@@ -13,6 +13,7 @@ datasource db {
 
 enum Role {
   USER
+  OWNER
   ADMIN
 }
 
@@ -81,4 +82,11 @@ model Booking {
   createdAt  DateTime @default(now())
 
   @@unique([courtId, timeSlotId, date])
+}
+
+model Field {
+  id String @id @default(uuid())
+  court Court  @relation(fields: [courtId], references: [id])
+  name  String
+  
 }

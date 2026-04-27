@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { signOut, useSession } from 'next-auth/react';
+import { useAuth } from '@/context/auth-context';
 import { LogOut, CalendarDays, History } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -20,9 +20,9 @@ const navLinks = [
 ];
 
 function UserMenu() {
-    const { data: session } = useSession();
+    const { user, logout } = useAuth();
     const router = useRouter();
-    const displayName = session?.user?.name || session?.user?.email || '';
+    const displayName = user?.name || user?.email || '';
     const initials = displayName.charAt(0).toUpperCase();
 
     return (
@@ -40,7 +40,7 @@ function UserMenu() {
             <DropdownMenuContent align="end" className="w-52">
                 <div className="px-2 py-1.5 border-b border-gray-100 mb-1">
                     <p className="text-xs text-gray-500">Đăng nhập với</p>
-                    <p className="text-sm font-semibold text-gray-800 truncate">{session?.user?.email}</p>
+                    <p className="text-sm font-semibold text-gray-800 truncate">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -60,7 +60,7 @@ function UserMenu() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     className="text-red-600 focus:text-red-600 cursor-pointer flex items-center gap-2"
-                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    onClick={() => logout().then(() => router.push('/login'))}
                 >
                     <LogOut className="w-4 h-4" />
                     Đăng xuất
@@ -72,7 +72,7 @@ function UserMenu() {
 
 export function HomeNavbar() {
     const pathname = usePathname();
-    const { data: session, status } = useSession();
+    const { user, isLoading } = useAuth();
 
     return (
         <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
@@ -101,9 +101,9 @@ export function HomeNavbar() {
                 </nav>
 
                 {/* Right side */}
-                {status === 'loading' ? (
+                {isLoading ? (
                     <div className="w-8 h-8 rounded-full bg-gray-100 animate-pulse" />
-                ) : session ? (
+                ) : user ? (
                     <UserMenu />
                 ) : (
                     <Link

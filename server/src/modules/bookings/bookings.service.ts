@@ -22,11 +22,11 @@ export class BookingsService {
       return await this.prisma.booking.create({
         data: {
           userId,
-          courtId: dto.courtId,
+          fieldId: dto.fieldId,
           timeSlotId: dto.timeSlotId,
           date,
         },
-        include: { court: true, timeSlot: true },
+        include: { field: { include: { court: true } }, timeSlot: true },
       });
     } catch (err) {
       if (
@@ -60,7 +60,7 @@ export class BookingsService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { court: true, timeSlot: true },
+        include: { field: { include: { court: true } }, timeSlot: true },
       }),
       this.prisma.booking.count({ where }),
     ]);
@@ -71,7 +71,7 @@ export class BookingsService {
   async findOne(id: string, userId: string, role: Role) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
-      include: { court: true, timeSlot: true },
+      include: { field: { include: { court: true } }, timeSlot: true },
     });
 
     if (!booking) {
@@ -95,7 +95,7 @@ export class BookingsService {
     return this.prisma.booking.update({
       where: { id },
       data: { status: 'CANCELLED' },
-      include: { court: true, timeSlot: true },
+      include: { field: { include: { court: true } }, timeSlot: true },
     });
   }
 
@@ -108,7 +108,7 @@ export class BookingsService {
     return this.prisma.booking.update({
       where: { id },
       data: { status: dto.status },
-      include: { court: true, timeSlot: true },
+      include: { field: { include: { court: true } }, timeSlot: true },
     });
   }
 }

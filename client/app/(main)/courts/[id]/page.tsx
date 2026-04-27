@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, use, useContext } from 'react';
+import { useMemo, useState, use } from 'react';
 import Image from 'next/image';
 import { MapPin, Star, ChevronLeft, ChevronRight, Calendar, Loader2 } from 'lucide-react';
-import { useCourt, useCourtAvailability } from '@/hooks/use-courts';
+import { useCourt } from '@/hooks/use-courts';
+import { useFieldAvailability } from '@/hooks/use-fields';
 import { useCreateBooking } from '@/hooks/use-bookings';
 import tienMinh from '@/assets/tienminh.webp';
-import type { ApiTimeSlot } from '@/types/court';
+import type { ApiField, ApiTimeSlot } from '@/types/court';
 import { HomeNavbar } from '@/components/home/navbar';
 import { Footer } from '@/components/home/footer';
 
@@ -40,16 +41,7 @@ function SlotLabel({ slot }: { slot: ApiTimeSlot }) {
     );
 }
 
-const MOCK_REVIEWS = [
-    {
-        id: '1',
-        name: 'Minh Quân',
-        avatar: null,
-        time: '2 ngày trước',
-        rating: 5,
-        comment: 'Sân rất đẹp, ánh sáng tốt, nhân viên nhiệt tình. Sẽ quay lại!',
-    },
-];
+
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
@@ -66,12 +58,12 @@ export default function CourtDetailPage({
     const [weekBase, setWeekBase] = useState(today);
     const [selectedDay, setSelectedDay] = useState(today);
     const [selectedSlot, setSelectedSlot] = useState<ApiTimeSlot | null>(null);
-    const [selectedCourtNum, setSelectedCourtNum] = useState(1);
+    const [selectedFieldId, setSelectedFieldId] = useState<string | undefined>(undefined);
     const [bookingError, setBookingError] = useState<string | null>(null);
     const [bookingSuccess, setBookingSuccess] = useState(false);
 
     const dateStr = selectedDay.toISOString().split('T')[0];
-    const { data: slots, isLoading: slotsLoading } = useCourtAvailability(id, dateStr);
+    const { data: slots, isLoading: slotsLoading } = useFieldAvailability(selectedFieldId, dateStr);
 
     const weekDays = getWeekDays(weekBase);
 
@@ -87,12 +79,12 @@ export default function CourtDetailPage({
     }
 
     async function handleBook() {
-        if (!selectedSlot) return;
+        if (!selectedSlot || !selectedFieldId) return;
         setBookingError(null);
         setBookingSuccess(false);
         try {
             await createBooking.mutateAsync({
-                courtId: id,
+                fieldId: selectedFieldId,
                 timeSlotId: selectedSlot.id,
                 date: dateStr,
             });
@@ -105,16 +97,19 @@ export default function CourtDetailPage({
         }
     }
 
-    const courtCount = 5; // placeholder – extend ApiCourt if needed
-    const amenities = [
-        `${courtCount} sân`,
-        ...(court?.hasLED ? ['Đèn LED'] : []),
-        'Máy lạnh',
-        'Cho thuê vợt',
-    ];
+    const fields = court?.fields ?? [];
+    const selectedField: ApiField | undefined = fields.find((f) => f.id === selectedFieldId);
+
+    const allFeatures = useMemo(() => {
+        const set = new Set<string>();
+        fields.forEach((f) => (f.features ?? []).forEach((x) => set.add(x)));
+        return Array.from(set);
+    }, [fields]);
+
+    const amenities = selectedFieldId && selectedField ? selectedField.features ?? [] : allFeatures;
 
     const SERVICE_FEE = 5000;
-    const pricePerHour = court?.pricePerHour ?? 0;
+    const pricePerHour = selectedField?.pricePerHour ?? 0;
 
     const formattedDate = selectedDay.toLocaleDateString('vi-VN', {
         weekday: 'long',
@@ -140,6 +135,7 @@ export default function CourtDetailPage({
                     src={tienMinh}
                     alt={court?.name ?? 'Court'}
                     fill
+                    sizes="100vw"
                     className="object-cover object-top"
                     priority
                 />
@@ -167,14 +163,18 @@ export default function CourtDetailPage({
                 <div className="flex-1 min-w-0 flex flex-col gap-6">
                     {/* Amenity tags */}
                     <div className="flex flex-wrap gap-2">
-                        {amenities.map((tag) => (
+                        {amenities.length === 0 ? (
+                            <span className="text-sm text-gray-400">Chưa có thông tin tiện ích.</span>
+                        ) : (
+                            amenities.map((tag) => (
                             <span
                                 key={tag}
                                 className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#E8F5F0] text-[#0F6E56] border border-[#0F6E56]/20"
                             >
                                 {tag}
                             </span>
-                        ))}
+                            ))
+                        )}
                     </div>
 
                     {/* Calendar section */}
@@ -206,7 +206,7 @@ export default function CourtDetailPage({
                                 const isToday = day.toDateString() === today.toDateString();
                                 return (
                                     <button
-                                        key={i}
+                                        key={day.toISOString()}
                                         onClick={() => {
                                             setSelectedDay(day);
                                             setSelectedSlot(null);
@@ -235,6 +235,10 @@ export default function CourtDetailPage({
                                 Array.from({ length: 6 }).map((_, i) => (
                                     <div key={i} className="h-14 rounded-lg bg-gray-100 animate-pulse" />
                                 ))
+                            ) : !selectedFieldId ? (
+                                <p className="col-span-3 text-center text-sm text-gray-400 py-6">
+                                    Vui lòng chọn sân (field) để xem khung giờ trống.
+                                </p>
                             ) : !slots || slots.length === 0 ? (
                                 <p className="col-span-3 text-center text-sm text-gray-400 py-6">
                                     Không có khung giờ trống trong ngày này.
@@ -265,34 +269,7 @@ export default function CourtDetailPage({
                         </div>
                     </div>
 
-                    {/* Reviews */}
-                    <div className="bg-white rounded-xl border border-gray-200 p-5">
-                        <h2 className="text-base font-semibold text-gray-800 mb-4">Đánh giá từ người chơi</h2>
-                        <div className="flex flex-col gap-4">
-                            {MOCK_REVIEWS.map((review) => (
-                                <div key={review.id} className="flex gap-3">
-                                    <div className="w-9 h-9 rounded-full bg-[#0F6E56] flex items-center justify-center text-white font-bold text-sm shrink-0">
-                                        {review.name.charAt(0)}
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-gray-800">{review.name}</span>
-                                            <span className="text-xs text-gray-400">{review.time}</span>
-                                        </div>
-                                        <div className="flex items-center gap-0.5 my-0.5">
-                                            {Array.from({ length: 5 }).map((_, i) => (
-                                                <Star
-                                                    key={i}
-                                                    className={`w-3 h-3 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`}
-                                                />
-                                            ))}
-                                        </div>
-                                        <p className="text-sm text-gray-600">{review.comment}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                
                 </div>
 
                 {/* ── Right column – Booking sidebar ─────────────────────────────── */}
@@ -311,22 +288,43 @@ export default function CourtDetailPage({
                             </div>
                         </div>
 
-                        {/* Court number */}
+                        {/* Field selection */}
                         <div className="mb-4">
                             <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
-                                Chọn sân
+                                Chọn sân (field)
                             </p>
-                            <select
-                                value={selectedCourtNum}
-                                onChange={(e) => setSelectedCourtNum(Number(e.target.value))}
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0F6E56]/40"
-                            >
-                                {Array.from({ length: courtCount }, (_, i) => (
-                                    <option key={i + 1} value={i + 1}>
-                                        Sân số {i + 1}
-                                    </option>
-                                ))}
-                            </select>
+                            {fields.length === 0 ? (
+                                <p className="text-xs text-gray-400">Sân này chưa có field.</p>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-2">
+                                    {fields.map((f) => {
+                                        const isSelected = f.id === selectedFieldId;
+                                        return (
+                                            <button
+                                                key={f.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedFieldId(f.id);
+                                                    setSelectedSlot(null);
+                                                    setBookingSuccess(false);
+                                                    setBookingError(null);
+                                                }}
+                                                className={[
+                                                    'w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition-all',
+                                                    isSelected
+                                                        ? 'border-[#0F6E56] bg-[#E8F5F0]'
+                                                        : 'border-gray-200 hover:border-[#0F6E56]/50 bg-white',
+                                                ].join(' ')}
+                                            >
+                                                <span className="font-medium text-gray-700 truncate">{f.name}</span>
+                                                <span className="text-xs text-gray-500 shrink-0">
+                                                    {Number(f.pricePerHour).toLocaleString('vi-VN')}đ/giờ
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
 
                         {/* Time selection */}
@@ -340,6 +338,8 @@ export default function CourtDetailPage({
                                         <div key={i} className="h-8 rounded-lg bg-gray-100 animate-pulse" />
                                     ))}
                                 </div>
+                            ) : !selectedFieldId ? (
+                                <p className="text-xs text-gray-400">Hãy chọn sân (field) để xem khung giờ trống.</p>
                             ) : !slots || slots.length === 0 ? (
                                 <p className="text-xs text-gray-400">Không có khung giờ trống.</p>
                             ) : (
@@ -393,7 +393,7 @@ export default function CourtDetailPage({
                             <p className="mt-3 text-sm text-center text-red-500">{bookingError}</p>
                         )}
                         <button
-                            disabled={!selectedSlot || createBooking.isPending}
+                            disabled={!selectedSlot || !selectedFieldId || createBooking.isPending}
                             onClick={handleBook}
                             className="mt-4 w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2
                 bg-[#0F6E56] text-white hover:bg-[#0D5E49] disabled:opacity-40 disabled:cursor-not-allowed"

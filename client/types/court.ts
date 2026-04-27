@@ -1,15 +1,21 @@
+export interface ApiField {
+  id: string;
+  name: string;
+  pricePerHour: number;
+  features: string[];
+  courtId: string;
+}
+
 export interface ApiCourt {
   id: string;
   name: string;
   location: string;
-  pricePerHour: number;
-  hasLED: boolean;
-  surfaceType: string | null;
   averageRating: number;
   reviewCount: number;
   latitude: number | null;
   longitude: number | null;
   createdAt: string;
+  fields: ApiField[];
 }
 
 export interface ApiTimeSlot {
@@ -24,7 +30,6 @@ export interface QueryCourtsParams {
   minPrice?: number;
   maxPrice?: number;
   hasLED?: boolean;
-  surfaceType?: string;
   minRating?: number;
   page?: number;
   limit?: number;

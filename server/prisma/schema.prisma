@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -22,71 +17,97 @@ enum BookingStatus {
   CONFIRMED
   CANCELLED
 }
-
-//  USER
-model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  password        String
-  name            String?
-  role            Role      @default(USER)
-  refreshToken    String?   @db.Text
-
-  bookings        Booking[]
-
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+enum FieldFeature {
+  LED
+  VIP
+  ROOFED
+  AIR_CONDITIONED
 }
 
-// COURT
+// USER
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String?
+  role          Role      @default(USER)
+  refreshToken  String?   @db.Text
+
+  bookings      Booking[]
+  courts        Court[]   @relation("OwnerCourts")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 model Court {
   id            String   @id @default(uuid())
   name          String
   location      String
-  pricePerHour  Float
-  hasLED        Boolean  @default(false)
-  surfaceType   String?
-  averageRating Float    @default(0)
-  reviewCount   Int      @default(0)
+
   latitude      Float?
   longitude     Float?
 
-  bookings      Booking[]
+  averageRating Float    @default(0)
+  reviewCount   Int      @default(0)
+
+  ownerId       String?
+  owner         User?    @relation("OwnerCourts", fields: [ownerId], references: [id])
+
+  fields        Field[]   // 👈 quan trọng
 
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
+
+// TIMESLOT (Reusable)
 model TimeSlot {
   id        String   @id @default(uuid())
   startTime DateTime
   endTime   DateTime
 
   bookings  Booking[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([startTime, endTime])
 }
 
-// booking
+// BOOKING
 model Booking {
   id         String        @id @default(uuid())
 
   userId     String
-  courtId    String
+  fieldId    String   
   timeSlotId String
 
   date       DateTime
-
   status     BookingStatus @default(PENDING)
 
   user       User     @relation(fields: [userId], references: [id])
-  court      Court    @relation(fields: [courtId], references: [id])
+  field      Field    @relation(fields: [fieldId], references: [id])
   timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
 
   createdAt  DateTime @default(now())
 
-  @@unique([courtId, timeSlotId, date])
+  @@unique([fieldId, timeSlotId, date])
+  @@index([fieldId, date])
+  @@index([userId])
 }
-
 model Field {
-  id String @id @default(uuid())
-  court Court  @relation(fields: [courtId], references: [id])
-  name  String
-  
+  id            String   @id @default(uuid())
+  name          String
+
+  pricePerHour  Decimal  @db.Decimal(10,2)
+  features      FieldFeature[]
+
+  courtId       String
+  court         Court    @relation(fields: [courtId], references: [id])
+
+  bookings      Booking[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([courtId])
 }

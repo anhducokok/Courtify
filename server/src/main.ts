@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -15,7 +16,12 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors({ origin: 'http://localhost:3000' });
+  app.use(cookieParser());
+
+  app.enableCors({
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    credentials: true,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

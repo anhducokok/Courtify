@@ -13,7 +13,7 @@ export function useCreateBooking() {
     mutationFn: (params: CreateBookingParams) => bookingService.createBooking(api, params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['court-availability'] });
+      queryClient.invalidateQueries({ queryKey: ['field-availability'] });
     },
   });
 }

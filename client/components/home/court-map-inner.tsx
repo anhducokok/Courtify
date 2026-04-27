@@ -52,6 +52,9 @@ export function CourtMapInner({ courts, selectedId, onSelect }: CourtMapInnerPro
     (c) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude),
   );
   const selectedCourt = selectedId ? courts.find((c) => c.id === selectedId) : undefined;
+  const prices = selectedCourt?.fields?.map((f) => f.pricePerHour) ?? [];
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
 
   return (
     <div className="relative w-full h-full">
@@ -90,7 +93,9 @@ export function CourtMapInner({ courts, selectedId, onSelect }: CourtMapInnerPro
                 <p className="text-sm font-semibold text-gray-900 truncate">{selectedCourt.name}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-xs font-medium text-[#0F6E56]">
-                    {selectedCourt.pricePerHour.toLocaleString('vi-VN')}đ/giờ
+                    {minPrice === maxPrice
+                      ? `${minPrice.toLocaleString('vi-VN')}đ/giờ`
+                      : `${minPrice.toLocaleString('vi-VN')}đ - ${maxPrice.toLocaleString('vi-VN')}đ/giờ`}
                   </span>
                   <span className="text-gray-300">·</span>
                   <span className="flex items-center gap-0.5 text-xs text-gray-500">

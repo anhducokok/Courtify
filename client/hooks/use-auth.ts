@@ -2,10 +2,8 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-
-import { authService, type RegisterInput } from "@/services/auth.service";
+import { useAuth } from "@/context/auth-context";
 
 function parseError(err: unknown): Error {
   if (isAxiosError(err)) {
@@ -19,22 +17,15 @@ function parseError(err: unknown): Error {
 
 export function useLoginMutation() {
   const router = useRouter();
+  const { login } = useAuth();
 
   return useMutation({
-    mutationFn: async ({
-      email,
-      password,
-    }: {
-      email: string;
-      password: string;
-    }) => {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-      if (result?.error) throw new Error(result.error);
-      return result;
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      try {
+        await login(email, password);
+      } catch (err) {
+        throw parseError(err);
+      }
     },
     onSuccess: () => router.push("/courts"),
   });
@@ -42,22 +33,15 @@ export function useLoginMutation() {
 
 export function useRegisterMutation() {
   const router = useRouter();
+  const { register } = useAuth();
 
   return useMutation({
-    mutationFn: async (input: RegisterInput) => {
+    mutationFn: async (input: { email: string; password: string; name?: string }) => {
       try {
-        await authService.register(input);
+        await register(input.email, input.password, input.name);
       } catch (err) {
         throw parseError(err);
       }
-
-      const result = await signIn("credentials", {
-        email: input.email,
-        password: input.password,
-        redirect: false,
-      });
-      if (result?.error) throw new Error(result.error);
-      return result;
     },
     onSuccess: () => router.push("/courts"),
   });

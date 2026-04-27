@@ -3,16 +3,21 @@ export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED';
 export interface ApiBooking {
   id: string;
   userId: string;
-  courtId: string;
+  fieldId: string;
   timeSlotId: string;
   date: string;
   status: BookingStatus;
   createdAt: string;
-  court?: {
+  field?: {
     id: string;
     name: string;
-    location: string;
     pricePerHour: number;
+    courtId: string;
+    court?: {
+      id: string;
+      name: string;
+      location: string;
+    };
   };
   timeSlot?: {
     id: string;
@@ -22,7 +27,7 @@ export interface ApiBooking {
 }
 
 export interface CreateBookingParams {
-  courtId: string;
+  fieldId: string;
   timeSlotId: string;
   date: string;
 }

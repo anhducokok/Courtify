@@ -1,9 +1,11 @@
 'use client';
 
-import { signOut, useSession } from 'next-auth/react';
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
 
 export function DashboardNavbar() {
-  const { data: session } = useSession();
+  const { user, logout } = useAuth();
+  const router = useRouter();
 
   return (
     <nav className="bg-white shadow">
@@ -14,9 +16,9 @@ export function DashboardNavbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-700">{session?.user?.email}</span>
+            <span className="text-sm text-gray-700">{user?.email}</span>
             <button
-              onClick={() => signOut({ callbackUrl: '/login' })}
+              onClick={() => logout().then(() => router.push('/login'))}
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
             >
               Sign out

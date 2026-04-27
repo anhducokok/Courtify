@@ -14,6 +14,18 @@ export interface TokenPair {
   refreshToken: string;
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+}
+
+export interface AuthResult {
+  tokens: TokenPair;
+  user: AuthUser;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -21,7 +33,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<TokenPair & { id: string }> {
+  async register(dto: RegisterDto): Promise<AuthResult> {
     // Check if user exists
     const existing = await this.usersService.findByEmail(dto.email);
     if (existing) {
@@ -32,18 +44,15 @@ export class AuthService {
     const user = await this.usersService.create(dto);
 
     // Generate tokens
-    const tokens = this.generateTokens(user.id, user.email, user.role);
+    const tokens = this.generateTokens(user.id, user.email, user.name, user.role);
 
     // Save hashed refresh token
     await this.usersService.updateRefreshToken(user.id, tokens.refreshToken);
 
-    return {
-      ...tokens,
-      id: user.id,
-    };
+    return { tokens, user: { id: user.id, email: user.email, name: user.name, role: user.role } };
   }
 
-  async login(dto: LoginDto): Promise<TokenPair & { id: string }> {
+  async login(dto: LoginDto): Promise<AuthResult> {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -56,15 +65,12 @@ export class AuthService {
     }
 
     // Generate tokens
-    const tokens = this.generateTokens(user.id, user.email, user.role);
+    const tokens = this.generateTokens(user.id, user.email, user.name, user.role);
 
     // Save hashed refresh token
     await this.usersService.updateRefreshToken(user.id, tokens.refreshToken);
 
-    return {
-      ...tokens,
-      id: user.id,
-    };
+    return { tokens, user: { id: user.id, email: user.email, name: user.name, role: user.role } };
   }
 
   async refresh(userId: string, refreshToken: string): Promise<TokenPair> {
@@ -80,7 +86,7 @@ export class AuthService {
     }
 
     // Generate new tokens
-    const tokens = this.generateTokens(user.id, user.email, user.role);
+    const tokens = this.generateTokens(user.id, user.email, user.name, user.role);
 
     // Save new hashed refresh token
     await this.usersService.updateRefreshToken(user.id, tokens.refreshToken);
@@ -92,8 +98,8 @@ export class AuthService {
     await this.usersService.updateRefreshToken(userId, null);
   }
 
-  private generateTokens(userId: string, email: string, role: string): TokenPair {
-    const payload = { id: userId, email, role };
+  private generateTokens(userId: string, email: string, name: string | null, role: string): TokenPair {
+    const payload = { id: userId, email, name, role };
 
     const accessToken = this.jwtService.sign(payload, {
       secret: process.env.JWT_SECRET || 'dev-secret-key',

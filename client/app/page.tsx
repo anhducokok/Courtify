@@ -21,14 +21,20 @@ import {
 import type { ApiCourt, QueryCourtsParams } from '@/types/court';
 
 function toCourtCard(c: ApiCourt): Court {
+  const prices = c.fields.map((f) => f.pricePerHour);
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
+  const hasLED = c.fields.some((f) => f.features?.includes('LED'));
+
   return {
     id: c.id,
     name: c.name,
     address: c.location,
     rating: c.averageRating,
-    pricePerHour: c.pricePerHour,
-    hasLED: c.hasLED,
-    tags: c.surfaceType ? [c.surfaceType] : [],
+    minPrice,
+    maxPrice,
+    hasLED,
+    tags: [],
   };
 }
 

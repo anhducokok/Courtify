@@ -18,82 +18,95 @@ export class CourtsService {
       where.location = { contains: query.location, mode: 'insensitive' };
     }
 
-    if (query.minPrice !== undefined || query.maxPrice !== undefined) {
-      where.pricePerHour = {};
-      if (query.minPrice !== undefined) {
-        (where.pricePerHour as Prisma.FloatFilter).gte = query.minPrice;
-      }
-      if (query.maxPrice !== undefined) {
-        (where.pricePerHour as Prisma.FloatFilter).lte = query.maxPrice;
-      }
-    }
-
-    if (query.hasLED !== undefined) {
-      where.hasLED = query.hasLED;
-    }
-
-    if (query.surfaceType) {
-      where.surfaceType = query.surfaceType;
-    }
-
     if (query.minRating !== undefined) {
       where.averageRating = { gte: query.minRating };
     }
 
+    // Filter courts that have at least one field with availability on this date
     if (query.date) {
       const dateStart = new Date(query.date);
       dateStart.setUTCHours(0, 0, 0, 0);
       const dateEnd = new Date(query.date);
       dateEnd.setUTCHours(23, 59, 59, 999);
-      where.bookings = {
-        none: {
-          date: { gte: dateStart, lte: dateEnd },
-          status: 'CONFIRMED',
+
+      where.fields = {
+        ...where.fields,
+        some: {
+          ...where.fields?.some,
+          bookings: {
+            none: {
+              date: { gte: dateStart, lte: dateEnd },
+              status: { in: ['CONFIRMED', 'PENDING'] },
+            },
+          },
         },
       };
     }
+
+    if (query.hasLED) {
+      where.fields = {
+        ...where.fields,
+        some: {
+          ...where.fields?.some,
+          features: { has: 'LED' },
+        },
+      };
+    }
+
+    if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+      where.fields = {
+        ...where.fields,
+        some: {
+          ...where.fields?.some,
+          pricePerHour: {
+            ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
+            ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
+          },
+        },
+      };
+    }
+
 
     const [data, total] = await Promise.all([
       this.prisma.court.findMany({
         where,
         skip,
         take: limit,
+        include: {
+          fields: true,
+        },
         orderBy: { averageRating: 'desc' },
       }),
       this.prisma.court.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    // Convert Decimal to number for all nested fields
+    const mapped = data.map((court) => ({
+      ...court,
+      fields: court.fields.map((f) => ({
+        ...f,
+        pricePerHour: Number(f.pricePerHour),
+      })),
+    }));
+
+    return { data: mapped, total, page, limit };
   }
 
   async findOne(id: string) {
-    const court = await this.prisma.court.findUnique({ where: { id } });
-    if (!court) throw new NotFoundException(`Court with id "${id}" not found`);
-    return court;
-  }
-
-  async findAvailability(courtId: string, date: string) {
-    await this.findOne(courtId);
-
-    const dateStart = new Date(date);
-    dateStart.setUTCHours(0, 0, 0, 0);
-    const dateEnd = new Date(date);
-    dateEnd.setUTCHours(23, 59, 59, 999);
-
-    const bookedSlots = await this.prisma.booking.findMany({
-      where: {
-        courtId,
-        date: { gte: dateStart, lte: dateEnd },
-        status: { in: ['CONFIRMED', 'PENDING'] },
+    const court = await this.prisma.court.findUnique({
+      where: { id },
+      include: {
+        fields: true,
       },
-      select: { timeSlotId: true },
     });
+    if (!court) throw new NotFoundException(`Court with id "${id}" not found`);
 
-    const bookedIds = bookedSlots.map((b) => b.timeSlotId);
-
-    return this.prisma.timeSlot.findMany({
-      where: { id: { notIn: bookedIds } },
-      orderBy: { startTime: 'asc' },
-    });
+    return {
+      ...court,
+      fields: court.fields.map((f) => ({
+        ...f,
+        pricePerHour: Number(f.pricePerHour),
+      })),
+    };
   }
 }

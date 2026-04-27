@@ -15,7 +15,9 @@ export class JwtRefreshStrategy extends PassportStrategy(
 ) {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: Request) => req?.cookies?.refresh_token ?? null,
+      ]),
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-key',
       passReqToCallback: true,
@@ -26,6 +28,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
     return {
       id: payload.id,
       email: payload.email,
+      refreshToken: req.cookies?.refresh_token as string,
     };
   }
 }

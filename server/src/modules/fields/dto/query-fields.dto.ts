@@ -1,30 +1,22 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { FieldFeature } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
-  IsBoolean,
+  IsArray,
+  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Min,
 } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export class QueryCourtsDto {
-  @ApiPropertyOptional({ description: 'Filter by location (case-insensitive substring)' })
+export class QueryFieldsDto {
+  @ApiPropertyOptional({ description: 'Filter by court UUID' })
   @IsOptional()
   @IsString()
-  location?: string;
-
-  @ApiPropertyOptional({ description: 'ISO date string (YYYY-MM-DD). Filters courts that have at least one field with availability on this date.' })
-  @IsOptional()
-  @IsString()
-  date?: string;
-
-  @ApiPropertyOptional({ description: 'Minimum average rating (0–5)' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  minRating?: number;
+  @IsUUID()
+  courtId?: string;
 
   @ApiPropertyOptional({ description: 'Minimum price per hour (VND)' })
   @IsOptional()
@@ -40,11 +32,21 @@ export class QueryCourtsDto {
   @Min(0)
   maxPrice?: number;
 
-  @ApiPropertyOptional({ description: 'Filter courts that have LED lighting' })
+  @ApiPropertyOptional({
+    description:
+      'Filter fields that have ALL of these features (comma-separated)',
+    enum: FieldFeature,
+    isArray: true,
+    example: ['LED', 'VIP'],
+  })
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  hasLED?: boolean;
+  @Transform(({ value }) => {
+    if (typeof value === 'string') return value.split(',');
+    return value;
+  })
+  @IsArray()
+  @IsEnum(FieldFeature, { each: true })
+  features?: FieldFeature[];
 
   @ApiPropertyOptional({ description: 'Page number (1-based)', default: 1 })
   @IsOptional()

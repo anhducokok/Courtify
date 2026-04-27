@@ -1,43 +1,23 @@
-import { withAuth } from 'next-auth/middleware';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export default withAuth(
-  function middleware(req: NextRequest) {
-    // This function runs only if the user is authenticated
-    return;
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        // Protect /dashboard routes
-        if (req.nextUrl.pathname.startsWith('/dashboard')) {
-          return !!token;
-        }
+export default function proxy(req: NextRequest) {
+    const hasToken = req.cookies.has('access_token') || req.cookies.has('refresh_token');
+    const { pathname } = req.nextUrl;
 
-        // Allow access to auth pages
-        if (req.nextUrl.pathname.startsWith('/login') || req.nextUrl.pathname.startsWith('/register')) {
-          return true;
-        }
+    // Redirect unauthenticated users away from protected routes
+    const isProtected = pathname.startsWith('/bookings') || pathname.startsWith('/history');
+    if (isProtected && !hasToken) {
+        return NextResponse.redirect(new URL('/login', req.url));
+    }
 
-        // Allow access to public pages
-        return true;
-      },
-    },
-    pages: {
-      signIn: '/login',
-    },
-  },
-);
+    // Redirect already-authenticated users away from login/register
+    if ((pathname.startsWith('/login') || pathname.startsWith('/register')) && hasToken) {
+        return NextResponse.redirect(new URL('/courts', req.url));
+    }
+
+    return NextResponse.next();
+}
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ],
+    matcher: ['/login', '/register', '/bookings/:path*', '/history/:path*'],
 };

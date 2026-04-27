@@ -11,6 +11,14 @@ export function useCourts(params: QueryCourtsParams = {}) {
   });
 }
 
+export function useCourt(id: string) {
+  return useQuery({
+    queryKey: ['court', id],
+    queryFn: () => courtService.getCourt(id),
+    enabled: !!id,
+  });
+}
+
 export function useCourtAvailability(courtId: string, date: string) {
   return useQuery({
     queryKey: ['court-availability', courtId, date],

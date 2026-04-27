@@ -8,7 +8,8 @@ export interface Court {
   address?: string;
   distance?: string;
   rating?: number;
-  pricePerHour: number;
+  minPrice: number;
+  maxPrice: number;
   availableCourts?: number;
   totalCourts?: number;
   hasLED: boolean;
@@ -23,6 +24,9 @@ interface CourtCardProps {
 }
 
 export function CourtCard({ court, selected = false, onClick }: CourtCardProps) {
+  const minPrice = Number.isFinite(court.minPrice) ? court.minPrice : 0;
+  const maxPrice = Number.isFinite(court.maxPrice) ? court.maxPrice : 0;
+
   return (
     <button
       type="button"
@@ -99,7 +103,9 @@ export function CourtCard({ court, selected = false, onClick }: CourtCardProps) 
             <p className="text-[10px] text-[#0F6E56] font-semibold mb-0.5">Đã chọn</p>
           )}
           <p className="text-sm font-bold text-[#0F6E56]">
-            {court.pricePerHour.toLocaleString('vi-VN')}đ
+            {minPrice === maxPrice
+              ? `${minPrice.toLocaleString('vi-VN')}đ`
+              : `${minPrice.toLocaleString('vi-VN')}đ - ${maxPrice.toLocaleString('vi-VN')}đ`}
           </p>
           <p className="text-[10px] text-gray-400">/giờ</p>
         </div>

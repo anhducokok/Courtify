@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import Link from 'next/link';
+import { Star, X } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { buttonVariants } from '@/components/ui/button';
 import type { ApiCourt } from '@/types/court';
 
-// Fix Leaflet default icon paths broken by bundlers
+// Restore default Leaflet pin (fix bundler path issue)
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -19,17 +23,6 @@ const selectedIcon = new L.Icon({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const defaultIcon = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
   shadowSize: [41, 41],
 });
 
@@ -39,8 +32,8 @@ function FlyToSelected({ courts, selectedId }: { courts: ApiCourt[]; selectedId?
   useEffect(() => {
     if (!selectedId) return;
     const court = courts.find((c) => c.id === selectedId);
-    if (court?.latitude && court?.longitude) {
-      map.flyTo([court.latitude, court.longitude], 15, { duration: 0.8 });
+    if (Number.isFinite(court?.latitude) && Number.isFinite(court?.longitude)) {
+      map.flyTo([court!.latitude!, court!.longitude!], 15, { duration: 0.6 });
     }
   }, [selectedId, courts, map]);
   return null;
@@ -52,54 +45,87 @@ interface CourtMapInnerProps {
   onSelect?: (id: string) => void;
 }
 
-// Ho Chi Minh City center
 const HCM_CENTER: [number, number] = [10.7769, 106.7009];
 
 export function CourtMapInner({ courts, selectedId, onSelect }: CourtMapInnerProps) {
-  const courtsWithCoords = courts.filter((c) => c.latitude && c.longitude);
+  const courtsWithCoords = courts.filter(
+    (c) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude),
+  );
+  const selectedCourt = selectedId ? courts.find((c) => c.id === selectedId) : undefined;
+  const prices = selectedCourt?.fields?.map((f) => f.pricePerHour) ?? [];
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
 
   return (
-    <MapContainer
-      center={HCM_CENTER}
-      zoom={12}
-      className="w-full h-full rounded-xl"
-      scrollWheelZoom={true}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+    <div className="relative w-full h-full">
+      <MapContainer
+        center={HCM_CENTER}
+        zoom={12}
+        className="w-full h-full rounded-xl"
+        scrollWheelZoom={true}
+        zoomControl={false}
+      >
+        {/* CartoDB Voyager — clean Google Maps-like style */}
+        <TileLayer
+          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        />
 
-      <FlyToSelected courts={courts} selectedId={selectedId} />
+        <FlyToSelected courts={courts} selectedId={selectedId} />
 
-      {courtsWithCoords.map((court) => (
-        <Marker
-          key={court.id}
-          position={[court.latitude!, court.longitude!]}
-          icon={selectedId === court.id ? selectedIcon : defaultIcon}
-          eventHandlers={{ click: () => onSelect?.(court.id) }}
-        >
-          <Popup minWidth={180}>
-            <div className="text-sm">
-              <p className="font-bold text-[#0F6E56] leading-snug">{court.name}</p>
-              <p className="text-gray-500 text-xs mt-0.5">{court.location}</p>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-[#0F6E56] font-semibold">
-                  {court.pricePerHour.toLocaleString('vi-VN')}đ/giờ
-                </span>
-                <span className="text-amber-500 text-xs font-medium">
-                  ★ {court.averageRating.toFixed(1)}
-                </span>
+        {courtsWithCoords.map((court) => (
+          <Marker
+            key={court.id}
+            position={[court.latitude!, court.longitude!]}
+            icon={selectedId === court.id ? selectedIcon : new L.Icon.Default()}
+            eventHandlers={{ click: () => onSelect?.(court.id) }}
+          />
+        ))}
+      </MapContainer>
+
+      {/* Minimal card — only shown when a court is selected */}
+      {selectedCourt && (
+        <div className="absolute bottom-3 left-3 right-3 z-[1000]">
+          <Card className="border-0 shadow-md bg-white/95 backdrop-blur-sm">
+            <CardContent className="p-3 flex items-center gap-3">
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{selectedCourt.name}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs font-medium text-[#0F6E56]">
+                    {minPrice === maxPrice
+                      ? `${minPrice.toLocaleString('vi-VN')}đ/giờ`
+                      : `${minPrice.toLocaleString('vi-VN')}đ - ${maxPrice.toLocaleString('vi-VN')}đ/giờ`}
+                  </span>
+                  <span className="text-gray-300">·</span>
+                  <span className="flex items-center gap-0.5 text-xs text-gray-500">
+                    <Star className="size-3 fill-amber-400 stroke-amber-400" />
+                    {selectedCourt.averageRating.toFixed(1)}
+                  </span>
+                </div>
               </div>
-              {court.hasLED && (
-                <span className="inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                  Đèn LED
-                </span>
-              )}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/courts/${selectedCourt.id}`}
+                  className={buttonVariants({ variant: 'default', size: 'sm', className: 'bg-[#0F6E56] hover:bg-[#0D5E49] text-white text-xs h-7 px-3' })}
+                >
+                  Xem chi tiết
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => onSelect?.(selectedCourt.id)}
+                  className="text-gray-300 hover:text-gray-500 transition-colors"
+                  aria-label="Đóng"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 }

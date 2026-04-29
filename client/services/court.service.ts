@@ -7,14 +7,16 @@ export const courtService = {
     return data;
   },
 
-  async getCourt(id: string): Promise<ApiCourt> {
-    const { data } = await publicClient.get<ApiCourt>(`/courts/${id}`);
+  async getCourt(id: string, date?: string): Promise<ApiCourt> {
+    const { data } = await publicClient.get<ApiCourt>(`/courts/${id}`, {
+      params: date ? { date } : {},
+    });
     return data;
   },
 
-  async getCourtAvailability(courtId: string, date: string): Promise<ApiTimeSlot[]> {
+  async getFieldAvailability(fieldId: string, date: string): Promise<ApiTimeSlot[]> {
     const { data } = await publicClient.get<ApiTimeSlot[]>(
-      `/courts/${courtId}/availability`,
+      `/fields/${fieldId}/availability`,
       { params: { date } },
     );
     return data;

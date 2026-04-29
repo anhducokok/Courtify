@@ -24,6 +24,12 @@ enum FieldFeature {
   AIR_CONDITIONED
 }
 
+enum PlanType {
+  AVAILABLE
+  BLOCKED
+  CUSTOM_PRICE
+}
+
 // USER
 model User {
   id            String    @id @default(uuid())
@@ -98,16 +104,44 @@ model Field {
   id            String   @id @default(uuid())
   name          String
 
-  pricePerHour  Decimal  @db.Decimal(10,2)
+  pricePerHour  Decimal  @db.Decimal(10, 2)
   features      FieldFeature[]
 
   courtId       String
   court         Court    @relation(fields: [courtId], references: [id])
 
   bookings      Booking[]
+  bookingPlans  FieldBookingPlan[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([courtId])
+}
+
+// BOOKING PLANS — Availability & Dynamic Pricing
+model FieldBookingPlan {
+  id           String    @id @default(uuid())
+  fieldId      String
+  field        Field     @relation(fields: [fieldId], references: [id])
+
+  type         PlanType
+  priority     Int       @default(0)
+
+  startTime    Int       // Minutes from 00:00 (e.g., 480 = 08:00, 1080 = 18:00)
+  endTime      Int       // Minutes from 00:00
+
+  timezone     String    @default("Asia/Ho_Chi_Minh")
+
+  isRecurring  Boolean   @default(true)
+  daysOfWeek   Int[]     // [1,2,3,4,5,6,0] = Mon,Tue,Wed,Thu,Fri,Sat,Sun
+  specificDate DateTime? // Used when isRecurring = false (Exception rule)
+
+  priceOverride Decimal? @db.Decimal(10, 2) // Required when type = CUSTOM_PRICE
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([fieldId])
+  @@index([specificDate])
 }

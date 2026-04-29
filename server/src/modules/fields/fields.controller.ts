@@ -33,8 +33,9 @@ export class FieldsController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'List fields with optional filtering and pagination' })
+  @ApiQuery({ name: 'date', required: false, description: 'ISO date (YYYY-MM-DD) to get bookings count' })
   @ApiResponse({ status: 200, description: 'Paginated list of fields' })
-  findAll(@Query() query: QueryFieldsDto) {
+  findAll(@Query() query: QueryFieldsDto & { date?: string }) {
     return this.fieldsService.findAll(query);
   }
 
@@ -42,10 +43,11 @@ export class FieldsController {
   @Public()
   @ApiOperation({ summary: 'Get a single field by ID' })
   @ApiParam({ name: 'id', description: 'Field UUID' })
+  @ApiQuery({ name: 'date', required: false, description: 'ISO date (YYYY-MM-DD) to get bookings count' })
   @ApiResponse({ status: 200, description: 'Field object with court info' })
   @ApiResponse({ status: 404, description: 'Field not found' })
-  findOne(@Param('id') id: string) {
-    return this.fieldsService.findOne(id);
+  findOne(@Param('id') id: string, @Query('date') date?: string) {
+    return this.fieldsService.findOne(id, date);
   }
 
   @Get(':id/availability')

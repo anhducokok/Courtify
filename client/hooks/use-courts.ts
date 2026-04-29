@@ -11,18 +11,18 @@ export function useCourts(params: QueryCourtsParams = {}) {
   });
 }
 
-export function useCourt(id: string) {
+export function useCourt(id: string, date?: string) {
   return useQuery({
-    queryKey: ['court', id],
-    queryFn: () => courtService.getCourt(id),
+    queryKey: ['court', id, date],
+    queryFn: () => courtService.getCourt(id, date),
     enabled: !!id,
   });
 }
 
-export function useCourtAvailability(courtId: string, date: string) {
+export function useFieldAvailability(fieldId: string | undefined | null, date: string | undefined | null) {
   return useQuery({
-    queryKey: ['court-availability', courtId, date],
-    queryFn: () => courtService.getCourtAvailability(courtId, date),
-    enabled: !!courtId && !!date,
+    queryKey: ['field-availability', fieldId, date],
+    queryFn: () => courtService.getFieldAvailability(fieldId!, date!),
+    enabled: !!fieldId && !!date,
   });
 }

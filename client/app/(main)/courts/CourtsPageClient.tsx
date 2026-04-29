@@ -47,11 +47,14 @@ function useIsDesktop() {
   );
 }
 
-function toCourtCard(c: ApiCourt): Court {
+function toCourtCard(c: ApiCourt, date?: string): Court {
   const prices = c.fields.map((f) => f.pricePerHour);
   const minPrice = prices.length ? Math.min(...prices) : 0;
   const maxPrice = prices.length ? Math.max(...prices) : 0;
   const hasLED = c.fields.some((f) => f.features?.includes('LED'));
+  const totalFields = c.fields.length;
+  const bookedFields = c.fields.filter((f) => f.bookingsCount && f.bookingsCount > 0).length;
+  const availableFields = totalFields - bookedFields;
 
   return {
     id: c.id,
@@ -62,6 +65,10 @@ function toCourtCard(c: ApiCourt): Court {
     maxPrice,
     hasLED,
     tags: [],
+    bookingsCount: bookedFields,
+    availableCourts: availableFields,
+    totalCourts: totalFields,
+    date,
   };
 }
 
@@ -164,7 +171,7 @@ export function CourtsPageClient({
                 {courts.map((court) => (
                   <CourtCard
                     key={court.id}
-                    court={toCourtCard(court)}
+                    court={toCourtCard(court, getFirst(query.date))}
                     selected={isDesktop && selectedId === court.id}
                     onClick={() =>
                       isDesktop

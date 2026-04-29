@@ -34,10 +34,11 @@ export class CourtsController {
   @Public()
   @ApiOperation({ summary: 'Get a single court by ID (includes fields)' })
   @ApiParam({ name: 'id', description: 'Court UUID' })
+  @ApiQuery({ name: 'date', required: false, description: 'ISO date (YYYY-MM-DD) to get field bookings count' })
   @ApiResponse({ status: 200, description: 'Court object with fields' })
   @ApiResponse({ status: 404, description: 'Court not found' })
-  findOne(@Param('id') id: string) {
-    return this.courtsService.findOne(id);
+  findOne(@Param('id') id: string, @Query('date') date?: string) {
+    return this.courtsService.findOne(id, date);
   }
 
   // ── Nested field routes ──────────────────────────────────────
@@ -46,10 +47,11 @@ export class CourtsController {
   @Public()
   @ApiOperation({ summary: 'List all fields belonging to a court' })
   @ApiParam({ name: 'id', description: 'Court UUID' })
+  @ApiQuery({ name: 'date', required: false, description: 'ISO date (YYYY-MM-DD) to get field bookings count' })
   @ApiResponse({ status: 200, description: 'Array of field objects' })
   @ApiResponse({ status: 404, description: 'Court not found' })
-  findFields(@Param('id') id: string) {
-    return this.fieldsService.findByCourtId(id);
+  findFields(@Param('id') id: string, @Query('date') date?: string) {
+    return this.fieldsService.findByCourtId(id, date);
   }
 
   @Post(':id/fields')

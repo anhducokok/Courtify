@@ -3,6 +3,7 @@
 import { useMemo, useState, use } from 'react';
 import Image from 'next/image';
 import { MapPin, Star, ChevronLeft, ChevronRight, Calendar, Loader2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCourt } from '@/hooks/use-courts';
 import { useFieldAvailability } from '@/hooks/use-fields';
 import { useCreateBooking } from '@/hooks/use-bookings';
@@ -33,6 +34,24 @@ function formatSlotTime(iso: string) {
     });
 }
 
+function isPastSlot(slot: ApiTimeSlot, day: Date) {
+    const now = new Date();
+    const selected = new Date(day);
+    selected.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selected < today) return true;
+    if (selected > today) return false;
+
+    const start = new Date(slot.startTime);
+    const slotStart = new Date(day);
+    slotStart.setHours(start.getHours(), start.getMinutes(), 0, 0);
+
+    return slotStart <= now;
+}
+
 function SlotLabel({ slot }: { slot: ApiTimeSlot }) {
     return (
         <span className="font-semibold text-gray-700">
@@ -51,9 +70,6 @@ export default function CourtDetailPage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = use(params);
-    const { data: court, isLoading } = useCourt(id);
-    const createBooking = useCreateBooking();
-
     const today = new Date();
     const [weekBase, setWeekBase] = useState(today);
     const [selectedDay, setSelectedDay] = useState(today);
@@ -63,6 +79,9 @@ export default function CourtDetailPage({
     const [bookingSuccess, setBookingSuccess] = useState(false);
 
     const dateStr = selectedDay.toISOString().split('T')[0];
+    const { data: court, isLoading } = useCourt(id, dateStr);
+    const createBooking = useCreateBooking();
+    const queryClient = useQueryClient();
     const { data: slots, isLoading: slotsLoading } = useFieldAvailability(selectedFieldId, dateStr);
 
     const weekDays = getWeekDays(weekBase);
@@ -90,20 +109,22 @@ export default function CourtDetailPage({
             });
             setBookingSuccess(true);
             setSelectedSlot(null);
-        } catch (err: unknown) {
-            const msg =
-                (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-            setBookingError(msg ?? 'Đặt sân thất bại. Vui lòng thử lại.');
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const msg = err?.response?.data?.message;
+            if (status === 409 || err?.response?.data?.code === 'P2002') {
+                setBookingError('Slot đã được đặt hoặc đang chờ xử lý. Vui lòng chọn giờ khác.');
+            } else {
+                setBookingError(msg ?? 'Đặt sân thất bại. Vui lòng thử lại.');
+            }
         }
     }
 
-    const fields = court?.fields ?? [];
+    const fields = useMemo(() => court?.fields ?? [], [court?.fields]);
     const selectedField: ApiField | undefined = fields.find((f) => f.id === selectedFieldId);
 
     const allFeatures = useMemo(() => {
-        const set = new Set<string>();
-        fields.forEach((f) => (f.features ?? []).forEach((x) => set.add(x)));
-        return Array.from(set);
+        return Array.from(new Set(fields.flatMap((f) => f.features ?? [])));
     }, [fields]);
 
     const amenities = selectedFieldId && selectedField ? selectedField.features ?? [] : allFeatures;
@@ -246,21 +267,53 @@ export default function CourtDetailPage({
                             ) : (
                                 slots.map((slot) => {
                                     const isSelected = selectedSlot?.id === slot.id;
+                                    const isPast = isPastSlot(slot, selectedDay);
+                                    const slotStatus = slot.status ?? 'AVAILABLE';
+                                    const isBooked = slotStatus !== 'AVAILABLE';
+
+                                    let statusBg = '';
+                                    let statusBorder = 'border-gray-200';
+                                    let statusTextColor = 'text-green-600';
+                                    let dotColor = 'bg-green-500';
+                                    let statusLabel = 'Còn trống';
+
+                                    if (isPast) {
+                                        statusBg = 'bg-gray-50 opacity-50';
+                                        statusBorder = 'border-gray-200';
+                                        statusTextColor = 'text-gray-400';
+                                        dotColor = 'bg-gray-400';
+                                        statusLabel = 'Đã qua giờ';
+                                    } else if (slotStatus === 'PENDING') {
+                                        statusBg = 'bg-amber-50';
+                                        statusBorder = 'border-amber-300';
+                                        statusTextColor = 'text-amber-600';
+                                        dotColor = 'bg-amber-400';
+                                        statusLabel = 'Chờ xác nhận';
+                                    } else if (slotStatus === 'CONFIRMED') {
+                                        statusBg = 'bg-red-50';
+                                        statusBorder = 'border-red-200';
+                                        statusTextColor = 'text-red-500';
+                                        dotColor = 'bg-red-400';
+                                        statusLabel = 'Đã đặt';
+                                    }
+
                                     return (
                                         <button
                                             key={slot.id}
+                                            disabled={isPast || isBooked}
                                             onClick={() => setSelectedSlot(isSelected ? null : slot)}
                                             className={[
                                                 'flex flex-col items-start px-3 py-2 rounded-lg border text-xs transition-all',
+                                                isPast ? 'cursor-not-allowed' : isBooked ? 'cursor-not-allowed' : '',
                                                 isSelected
                                                     ? 'border-[#0F6E56] bg-[#E8F5F0]'
-                                                    : 'border-gray-200 hover:border-[#0F6E56]/50 bg-white',
+                                                    : `${statusBg} hover:${statusBorder} border-gray-200`,
                                             ].join(' ')}
                                         >
                                             <SlotLabel slot={slot} />
-                                            <span className="text-xs text-green-600 flex items-center gap-1 mt-0.5">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                                                Còn trống
+                                            <span className={`text-xs ${statusTextColor} flex items-center gap-1 mt-0.5`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${dotColor} inline-block`} />
+                                                {isPast ? 'Đã qua giờ' : statusLabel}
                                             </span>
                                         </button>
                                     );
@@ -299,25 +352,39 @@ export default function CourtDetailPage({
                                 <div className="grid grid-cols-1 gap-2">
                                     {fields.map((f) => {
                                         const isSelected = f.id === selectedFieldId;
+                                        const isPastDate = (() => {
+                                            const selected = new Date(selectedDay);
+                                            selected.setHours(0, 0, 0, 0);
+                                            const todayDate = new Date();
+                                            todayDate.setHours(0, 0, 0, 0);
+                                            return selected < todayDate;
+                                        })();
+
                                         return (
                                             <button
                                                 key={f.id}
                                                 type="button"
+                                                disabled={isPastDate}
                                                 onClick={() => {
                                                     setSelectedFieldId(f.id);
                                                     setSelectedSlot(null);
+                                                    queryClient.invalidateQueries({ queryKey: ['field-availability'] });
                                                     setBookingSuccess(false);
                                                     setBookingError(null);
                                                 }}
                                                 className={[
                                                     'w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition-all',
-                                                    isSelected
-                                                        ? 'border-[#0F6E56] bg-[#E8F5F0]'
-                                                        : 'border-gray-200 hover:border-[#0F6E56]/50 bg-white',
+                                                    isPastDate ? 'bg-gray-600 border-gray-500 cursor-not-allowed' : 'bg-white border-gray-200 hover:border-[#0F6E56]/50 cursor-pointer',
+                                                    isSelected && !isPastDate ? 'border-2 border-[#0F6E56] shadow-sm' : '',
                                                 ].join(' ')}
                                             >
-                                                <span className="font-medium text-gray-700 truncate">{f.name}</span>
-                                                <span className="text-xs text-gray-500 shrink-0">
+                                                <div className="flex-1 text-left">
+                                                    <span className={`font-medium truncate ${isPastDate ? 'text-gray-100' : 'text-gray-700'}`}>{f.name}</span>
+                                                    {isPastDate && (
+                                                        <span className="text-[10px] text-gray-300 block mt-0.5">Quá giờ</span>
+                                                    )}
+                                                </div>
+                                                <span className={`text-xs shrink-0 ${isPastDate ? 'text-gray-400' : 'text-gray-500'}`}>
                                                     {Number(f.pricePerHour).toLocaleString('vi-VN')}đ/giờ
                                                 </span>
                                             </button>
@@ -346,15 +413,36 @@ export default function CourtDetailPage({
                                 <div className="grid grid-cols-2 gap-2">
                                     {slots.slice(0, 6).map((slot) => {
                                         const isSelected = selectedSlot?.id === slot.id;
+                                        const isPast = isPastSlot(slot, selectedDay);
+                                        const slotStatus = slot.status ?? 'AVAILABLE';
+                                        const isBooked = slotStatus !== 'AVAILABLE';
+
+                                        let statusBg = '';
+                                        let textColor = 'text-gray-600';
+
+                                        if (isPast) {
+                                            statusBg = 'bg-gray-50 text-gray-400 cursor-not-allowed';
+                                        } else if (slotStatus === 'PENDING') {
+                                            statusBg = 'bg-amber-50 text-amber-600 cursor-not-allowed';
+                                        } else if (slotStatus === 'CONFIRMED') {
+                                            statusBg = 'bg-red-50 text-red-400 cursor-not-allowed';
+                                        }
+
                                         return (
                                             <button
                                                 key={slot.id}
+                                                disabled={isPast || isBooked}
                                                 onClick={() => setSelectedSlot(isSelected ? null : slot)}
                                                 className={[
                                                     'py-1.5 px-2 rounded-lg text-xs font-medium border transition-all',
+                                                    isPast
+                                                        ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                                                        : isBooked
+                                                            ? statusBg
+                                                            : '',
                                                     isSelected
                                                         ? 'border-[#0F6E56] bg-[#0F6E56] text-white'
-                                                        : 'border-gray-200 text-gray-600 hover:border-[#0F6E56]/60',
+                                                        : `border-gray-200 ${!isPast && !isBooked ? 'text-gray-600 hover:border-[#0F6E56]/60' : textColor}`,
                                                 ].join(' ')}
                                             >
                                                 {formatSlotTime(slot.startTime)} - {formatSlotTime(slot.endTime)}

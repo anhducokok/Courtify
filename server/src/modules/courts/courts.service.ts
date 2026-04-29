@@ -22,48 +22,37 @@ export class CourtsService {
       where.averageRating = { gte: query.minRating };
     }
 
-    // Filter courts that have at least one field with availability on this date
+    // Build combined field conditions so that the SAME field must satisfy all criteria
+    const fieldConditions: any = {};
+
+    if (query.hasLED) {
+      fieldConditions.features = { has: 'LED' };
+    }
+
+    if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+      fieldConditions.pricePerHour = {
+        ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
+        ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
+      };
+    }
+
+    // Add bookings condition if date is provided
     if (query.date) {
       const dateStart = new Date(query.date);
       dateStart.setUTCHours(0, 0, 0, 0);
       const dateEnd = new Date(query.date);
       dateEnd.setUTCHours(23, 59, 59, 999);
 
-      where.fields = {
-        ...where.fields,
-        some: {
-          ...where.fields?.some,
-          bookings: {
-            none: {
-              date: { gte: dateStart, lte: dateEnd },
-              status: { in: ['CONFIRMED', 'PENDING'] },
-            },
-          },
+      fieldConditions.bookings = {
+        none: {
+          date: { gte: dateStart, lte: dateEnd },
+          status: { in: ['CONFIRMED', 'PENDING'] },
         },
       };
     }
 
-    if (query.hasLED) {
-      where.fields = {
-        ...where.fields,
-        some: {
-          ...where.fields?.some,
-          features: { has: 'LED' },
-        },
-      };
-    }
-
-    if (query.minPrice !== undefined || query.maxPrice !== undefined) {
-      where.fields = {
-        ...where.fields,
-        some: {
-          ...where.fields?.some,
-          pricePerHour: {
-            ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
-            ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
-          },
-        },
-      };
+    if (Object.keys(fieldConditions).length > 0) {
+      where.fields = { some: fieldConditions };
     }
 
 
@@ -73,7 +62,19 @@ export class CourtsService {
         skip,
         take: limit,
         include: {
-          fields: true,
+          fields: query.date ? {
+            include: {
+              bookings: {
+                where: {
+                  date: {
+                    gte: new Date(query.date),
+                    lt: new Date(new Date(query.date).getTime() + 24 * 60 * 60 * 1000),
+                  },
+                  status: { in: ['CONFIRMED', 'PENDING'] },
+                },
+              },
+            },
+          } : true,
         },
         orderBy: { averageRating: 'desc' },
       }),
@@ -86,19 +87,61 @@ export class CourtsService {
       fields: court.fields.map((f) => ({
         ...f,
         pricePerHour: Number(f.pricePerHour),
+        bookingsCount: query.date ? ((f as any).bookings as any[])?.length ?? 0 : 0,
       })),
     }));
 
     return { data: mapped, total, page, limit };
   }
 
-  async findOne(id: string) {
-    const court = await this.prisma.court.findUnique({
+  async findOne(id: string, date?: string) {
+    // Try to find by UUID first; if not found, try by slug (name normalized)
+    let court = await this.prisma.court.findUnique({
       where: { id },
       include: {
-        fields: true,
+        fields: {
+          include: {
+            ...(date && {
+              bookings: {
+                where: {
+                  date: {
+                    gte: new Date(date),
+                    lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
+                  },
+                  status: { in: ['CONFIRMED', 'PENDING'] },
+                },
+              },
+            }),
+          },
+        },
       },
     });
+
+    if (!court) {
+      court = await this.prisma.court.findFirst({
+        where: {
+          name: { equals: id, mode: 'insensitive' },
+        },
+        include: {
+          fields: {
+            include: {
+              ...(date && {
+                bookings: {
+                  where: {
+                    date: {
+                      gte: new Date(date),
+                      lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
+                    },
+                    status: { in: ['CONFIRMED', 'PENDING'] },
+                  },
+                },
+              }),
+            },
+          },
+        },
+      });
+    }
+
     if (!court) throw new NotFoundException(`Court with id "${id}" not found`);
 
     return {
@@ -106,6 +149,8 @@ export class CourtsService {
       fields: court.fields.map((f) => ({
         ...f,
         pricePerHour: Number(f.pricePerHour),
+        bookingsCount: date ? ((f as any).bookings as any[])?.length ?? 0 : undefined,
+        bookings: undefined,
       })),
     };
   }

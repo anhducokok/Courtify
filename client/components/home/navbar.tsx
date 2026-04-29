@@ -15,7 +15,7 @@ import {
 
 const navLinks = [
     { href: '/', label: 'Tìm sân' },
-    { href: '/bookings', label: 'Đặt lịch' },
+    { href: '/my-bookings', label: 'Sân đã đặt' },
     { href: '/history', label: 'Lịch sử' },
 ];
 
@@ -45,10 +45,10 @@ function UserMenu() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     className="flex items-center gap-2 cursor-pointer"
-                    onClick={() => router.push('/bookings')}
+                    onClick={() => router.push('/my-bookings')}
                 >
                     <CalendarDays className="w-4 h-4" />
-                    Đặt lịch của tôi
+                    Sân đã đặt
                 </DropdownMenuItem>
                 <DropdownMenuItem
                     className="flex items-center gap-2 cursor-pointer"

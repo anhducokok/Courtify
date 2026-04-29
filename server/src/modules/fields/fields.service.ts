@@ -15,7 +15,7 @@ export class FieldsService {
   constructor(private readonly prisma: PrismaService) {}
 
   // ── List fields (flat route) ──────────────────────────────────
-  async findAll(query: QueryFieldsDto) {
+  async findAll(query: QueryFieldsDto & { date?: string }) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const skip = (page - 1) * limit;
@@ -45,7 +45,20 @@ export class FieldsService {
         where,
         skip,
         take: limit,
-        include: { court: true },
+        include: {
+          court: true,
+          ...(query.date && {
+            bookings: {
+              where: {
+                date: {
+                  gte: new Date(query.date),
+                  lt: new Date(new Date(query.date).getTime() + 24 * 60 * 60 * 1000),
+                },
+                status: { in: ['CONFIRMED', 'PENDING'] },
+              },
+            },
+          }),
+        },
         orderBy: { name: 'asc' },
       }),
       this.prisma.field.count({ where }),
@@ -55,6 +68,8 @@ export class FieldsService {
       data: data.map((f) => ({
         ...f,
         pricePerHour: Number(f.pricePerHour),
+        bookingsCount: query.date ? ((f as any).bookings as any[])?.length ?? 0 : undefined,
+        bookings: undefined,
       })),
       total,
       page,
@@ -63,7 +78,7 @@ export class FieldsService {
   }
 
   // ── List fields by court (nested route) ───────────────────────
-  async findByCourtId(courtId: string) {
+  async findByCourtId(courtId: string, date?: string) {
     // Verify court exists
     const court = await this.prisma.court.findUnique({
       where: { id: courtId },
@@ -74,25 +89,58 @@ export class FieldsService {
 
     const fields = await this.prisma.field.findMany({
       where: { courtId },
+      include: {
+        ...(date && {
+          bookings: {
+            where: {
+              date: {
+                gte: new Date(date),
+                lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
+              },
+              status: { in: ['CONFIRMED', 'PENDING'] },
+            },
+          },
+        }),
+      },
       orderBy: { name: 'asc' },
     });
 
     return fields.map((f) => ({
       ...f,
       pricePerHour: Number(f.pricePerHour),
+      bookingsCount: date ? ((f as any).bookings as any[])?.length ?? 0 : undefined,
+      bookings: undefined,
     }));
   }
 
   // ── Get single field ──────────────────────────────────────────
-  async findOne(id: string) {
+  async findOne(id: string, date?: string) {
     const field = await this.prisma.field.findUnique({
       where: { id },
-      include: { court: true },
+      include: {
+        court: true,
+        ...(date && {
+          bookings: {
+            where: {
+              date: {
+                gte: new Date(date),
+                lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
+              },
+              status: { in: ['CONFIRMED', 'PENDING'] },
+            },
+          },
+        }),
+      },
     });
     if (!field) {
       throw new NotFoundException(`Field "${id}" not found`);
     }
-    return { ...field, pricePerHour: Number(field.pricePerHour) };
+    return {
+      ...field,
+      pricePerHour: Number(field.pricePerHour),
+      bookingsCount: date ? ((field as any).bookings as any[])?.length ?? 0 : undefined,
+      bookings: undefined,
+    };
   }
 
   // ── Create field ──────────────────────────────────────────────
@@ -192,23 +240,36 @@ export class FieldsService {
     const dateEnd = new Date(date);
     dateEnd.setUTCHours(23, 59, 59, 999);
 
-    // Find all booked time slots for this field on the given date
+    // Find all booked time slots for this field on the given date with their status
     const bookedSlots = await this.prisma.booking.findMany({
       where: {
         fieldId,
         date: { gte: dateStart, lte: dateEnd },
         status: { in: ['CONFIRMED', 'PENDING'] },
       },
-      select: { timeSlotId: true },
+      select: { timeSlotId: true, status: true },
     });
 
-    const bookedIds = bookedSlots.map((b) => b.timeSlotId);
+    // Build a map: timeSlotId -> status (PENDING or CONFIRMED)
+    const slotStatusMap: Record<string, string> = {};
+    for (const b of bookedSlots) {
+      // If multiple bookings on same slot, prefer CONFIRMED over PENDING
+      if (!slotStatusMap[b.timeSlotId] || b.status === 'CONFIRMED') {
+        slotStatusMap[b.timeSlotId] = b.status;
+      }
+    }
 
-    // Return all slots NOT booked for this field
-    return this.prisma.timeSlot.findMany({
-      where: { id: { notIn: bookedIds } },
+    // Return ALL slots with their availability status
+    const allSlots = await this.prisma.timeSlot.findMany({
       orderBy: { startTime: 'asc' },
     });
+
+    return allSlots.map((slot) => ({
+      id: slot.id,
+      startTime: slot.startTime.toISOString(),
+      endTime: slot.endTime.toISOString(),
+      status: slotStatusMap[slot.id] ?? 'AVAILABLE',
+    }));
   }
 
   // ── Auth helper ───────────────────────────────────────────────

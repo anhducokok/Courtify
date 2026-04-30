@@ -1,6 +1,5 @@
 'use client';
 
-import { DashboardLayout } from '@/components/dashboard/dashboard-layout';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { ChartCard } from '@/components/dashboard/chart-card';
 import { RecentActivityCard } from '@/components/dashboard/recent-activity-card';
@@ -120,7 +119,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <DashboardLayout isAdmin={true} headerTitle="Dashboard">
+    <>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => (
@@ -170,6 +169,6 @@ export default function AdminDashboard() {
           viewAllLink="/admin/reports"
         />
       </div>
-    </DashboardLayout>
+    </>
   );
 }

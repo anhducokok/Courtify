@@ -9,6 +9,7 @@ import {
   FileText,
   Settings,
   LogOut,
+  CalendarClock,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
@@ -74,6 +75,11 @@ export function AdminSidebar({ isAdmin = true }: AdminSidebarProps) {
           icon: <FileText className="w-5 h-5" />,
         },
         {
+          href: '/manager/booking-plans',
+          label: 'Lịch sân & Giá',
+          icon: <CalendarClock className="w-5 h-5" />,
+        },
+        {
           href: '/manager/analytics',
           label: 'Phân tích',
           icon: <BarChart3 className="w-5 h-5" />,
@@ -100,7 +106,7 @@ export function AdminSidebar({ isAdmin = true }: AdminSidebarProps) {
           <div>
             <h1 className="text-lg font-bold font-lexend">Zen8labs</h1>
             <p className="text-xs text-white/60">
-              {isAdmin ? 'Admin' : 'Manager'}
+              {isAdmin ? 'Admin' : 'Owner'}
             </p>
           </div>
         </Link>

@@ -46,24 +46,32 @@ model User {
   updatedAt     DateTime  @updatedAt
 }
 
+enum CourtStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  INACTIVE
+}
+
 model Court {
-  id            String   @id @default(uuid())
+  id            String      @id @default(uuid())
   name          String
   location      String
 
   latitude      Float?
   longitude     Float?
 
-  averageRating Float    @default(0)
-  reviewCount   Int      @default(0)
+  status        CourtStatus @default(PENDING_APPROVAL)
+
+  averageRating Float       @default(0)
+  reviewCount   Int         @default(0)
 
   ownerId       String?
-  owner         User?    @relation("OwnerCourts", fields: [ownerId], references: [id])
+  owner         User?       @relation("OwnerCourts", fields: [ownerId], references: [id])
 
   fields        Field[]   // 👈 quan trọng
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 // TIMESLOT (Reusable)

@@ -197,7 +197,7 @@ export interface DashboardApiResponse {
 
 export enum DashboardRole {
   ADMIN = 'admin',
-  MANAGER = 'manager',
+  OWNER = 'owner',
   USER = 'user',
 }
 

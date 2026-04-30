@@ -7,10 +7,11 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CourtsModule } from './modules/courts/courts.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { FieldsModule } from './modules/fields/fields.module';
+import { BookingPlansModule } from './modules/booking-plans/booking-plans.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, CourtsModule, BookingsModule, FieldsModule],
+  imports: [DatabaseModule, AuthModule, CourtsModule, BookingsModule, FieldsModule, BookingPlansModule],
   controllers: [AppController],
   providers: [
     AppService,

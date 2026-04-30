@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "CourtStatus" AS ENUM ('PENDING_APPROVAL', 'ACTIVE', 'INACTIVE');
+
+-- AlterTable
+ALTER TABLE "Court" ADD COLUMN     "status" "CourtStatus" NOT NULL DEFAULT 'PENDING_APPROVAL';

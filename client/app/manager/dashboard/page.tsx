@@ -1,6 +1,5 @@
 'use client';
 
-import { DashboardLayout } from '@/components/dashboard/dashboard-layout';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { ChartCard } from '@/components/dashboard/chart-card';
 import { RecentActivityCard } from '@/components/dashboard/recent-activity-card';
@@ -15,7 +14,6 @@ import {
 } from 'lucide-react';
 
 export default function ManagerDashboard() {
-  // Mock data for manager
   const stats = [
     {
       label: 'Tổng doanh thu',
@@ -119,7 +117,7 @@ export default function ManagerDashboard() {
   ];
 
   return (
-    <DashboardLayout isAdmin={false} headerTitle="Dashboard quản lý">
+    <>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => (
@@ -129,7 +127,6 @@ export default function ManagerDashboard() {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Monthly Bookings */}
         <div className="lg:col-span-2">
           <ChartCard
             title="Đặt sân hàng ngày"
@@ -144,7 +141,6 @@ export default function ManagerDashboard() {
           </ChartCard>
         </div>
 
-        {/* Revenue Trend */}
         <ChartCard
           title="Doanh thu hàng tháng"
           description="Xu hướng doanh thu qua các tháng"
@@ -155,20 +151,17 @@ export default function ManagerDashboard() {
 
       {/* Activity Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Bookings */}
         <RecentActivityCard
           title="Đặt sân gần đây"
           items={recentBookings}
           viewAllLink="/manager/bookings"
         />
-
-        {/* Top Courts */}
         <RecentActivityCard
           title="Sân phổ biến nhất"
           items={topCourts}
           viewAllLink="/manager/courts"
         />
       </div>
-    </DashboardLayout>
+    </>
   );
 }

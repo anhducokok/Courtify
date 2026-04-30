@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { CourtStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { QueryCourtsDto } from './dto/query-courts.dto';
+import { CreateCourtDto } from './dto/create-court.dto';
+import { UpdateCourtStatusDto } from './dto/update-court-status.dto';
 
 @Injectable()
 export class CourtsService {
@@ -94,8 +96,8 @@ export class CourtsService {
     return { data: mapped, total, page, limit };
   }
 
+  // ── Find one court ─────────────────────────────────────────────
   async findOne(id: string, date?: string) {
-    // Try to find by UUID first; if not found, try by slug (name normalized)
     let court = await this.prisma.court.findUnique({
       where: { id },
       include: {
@@ -119,9 +121,7 @@ export class CourtsService {
 
     if (!court) {
       court = await this.prisma.court.findFirst({
-        where: {
-          name: { equals: id, mode: 'insensitive' },
-        },
+        where: { name: { equals: id, mode: 'insensitive' } },
         include: {
           fields: {
             include: {
@@ -153,5 +153,62 @@ export class CourtsService {
         bookings: undefined,
       })),
     };
+  }
+
+  // ── Create court (owner only) ─────────────────────────────────
+  async create(userId: string, dto: CreateCourtDto) {
+    const court = await this.prisma.court.create({
+      data: {
+        name: dto.name,
+        location: dto.location,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
+        ownerId: userId,
+        status: CourtStatus.PENDING_APPROVAL,
+      },
+      include: { owner: { select: { id: true, name: true, email: true } } },
+    });
+    return court;
+  }
+
+  // ── Approve / reject court (admin only) ───────────────────────
+  async updateStatus(id: string, adminId: string, dto: UpdateCourtStatusDto) {
+    const court = await this.prisma.court.findUnique({ where: { id } });
+    if (!court) throw new NotFoundException(`Court "${id}" not found`);
+
+    const updated = await this.prisma.court.update({
+      where: { id },
+      data: { status: dto.status },
+      include: { owner: { select: { id: true, name: true, email: true } } },
+    });
+    return updated;
+  }
+
+  // ── List courts by owner (manager/owner) ──────────────────────
+  async findByOwner(ownerId: string) {
+    const courts = await this.prisma.court.findMany({
+      where: { ownerId },
+      include: {
+        _count: { select: { fields: true } },
+        fields: { select: { id: true, name: true, pricePerHour: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return courts.map((c) => ({
+      ...c,
+      fields: c.fields.map((f) => ({ ...f, pricePerHour: Number(f.pricePerHour) })),
+    }));
+  }
+
+  // ── List pending courts (admin) ────────────────────────────────
+  async findPending() {
+    return this.prisma.court.findMany({
+      where: { status: CourtStatus.PENDING_APPROVAL },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        _count: { select: { fields: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 }

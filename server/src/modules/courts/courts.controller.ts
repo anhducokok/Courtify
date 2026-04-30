@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -8,9 +8,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { CurrentUser, Public } from '../../common/decorators';
+import { CurrentUser, Public, Roles } from '../../common/decorators';
 import { CourtsService } from './courts.service';
 import { QueryCourtsDto } from './dto/query-courts.dto';
+import { CreateCourtDto } from './dto/create-court.dto';
+import { UpdateCourtStatusDto } from './dto/update-court-status.dto';
 import { FieldsService } from '../fields/fields.service';
 import { CreateFieldDto } from '../fields/dto/create-field.dto';
 
@@ -29,6 +31,26 @@ export class CourtsController {
   findAll(@Query() query: QueryCourtsDto) {
     return this.courtsService.findAll(query);
   }
+
+  // ── Special routes (must be before :id) ───────────────────────
+
+  @Get('my')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'List all courts owned by the current user' })
+  myCourts(@CurrentUser() user: { id: string }) {
+    return this.courtsService.findByOwner(user.id);
+  }
+
+  @Get('pending')
+  @ApiBearerAuth('access-token')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'List all courts pending approval' })
+  @ApiResponse({ status: 200, description: 'List of pending courts' })
+  pendingCourts() {
+    return this.courtsService.findPending();
+  }
+
+  // ── Dynamic routes ─────────────────────────────────────────────
 
   @Get(':id')
   @Public()
@@ -67,5 +89,33 @@ export class CourtsController {
     @Body() dto: CreateFieldDto,
   ) {
     return this.fieldsService.create(user.id, user.role, id, dto);
+  }
+
+  // ── Owner endpoints ─────────────────────────────────────────────
+
+  @Post()
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Create a new court (owner only)' })
+  @ApiResponse({ status: 201, description: 'Court created, pending approval' })
+  create(@CurrentUser() user: { id: string; role: Role }, @Body() dto: CreateCourtDto) {
+    return this.courtsService.create(user.id, dto);
+  }
+
+  // ── Admin endpoints ─────────────────────────────────────────────
+
+  @Patch(':id/status')
+  @ApiBearerAuth('access-token')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Approve or reject a court (admin only)' })
+  @ApiParam({ name: 'id', description: 'Court UUID' })
+  @ApiResponse({ status: 200, description: 'Court status updated' })
+  @ApiResponse({ status: 403, description: 'Admin only' })
+  @ApiResponse({ status: 404, description: 'Court not found' })
+  updateStatus(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: Role },
+    @Body() dto: UpdateCourtStatusDto,
+  ) {
+    return this.courtsService.updateStatus(id, user.id, dto);
   }
 }

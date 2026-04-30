@@ -168,6 +168,7 @@ export const ADMIN_NAV_ITEMS = [
 export const MANAGER_NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', href: '/manager/dashboard', icon: 'BarChart3' },
   { id: 'courts', label: 'Sân của tôi', href: '/manager/courts', icon: 'MapPin' },
+  { id: 'booking-plans', label: 'Lịch sân & Giá', href: '/manager/booking-plans', icon: 'CalendarDays' },
   { id: 'bookings', label: 'Đặt sân', href: '/manager/bookings', icon: 'FileText' },
   { id: 'analytics', label: 'Phân tích', href: '/manager/analytics', icon: 'BarChart3' },
   { id: 'settings', label: 'Cài đặt', href: '/manager/settings', icon: 'Settings' },

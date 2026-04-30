@@ -10,11 +10,6 @@ export default function proxy(req: NextRequest) {
         return NextResponse.redirect(new URL('/login', req.url));
     }
 
-    // Redirect already-authenticated users away from login/register
-    if ((pathname.startsWith('/login') || pathname.startsWith('/register')) && hasToken) {
-        return NextResponse.redirect(new URL('/courts', req.url));
-    }
-
     return NextResponse.next();
 }
 

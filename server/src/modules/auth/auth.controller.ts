@@ -18,6 +18,7 @@ import {
 import { AuthService, TokenPair } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { Public, CurrentUser } from '../../common/decorators';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 
@@ -103,6 +104,20 @@ export class AuthController {
     await this.authService.logout(user.id);
     this.clearCookies(res);
     return { message: 'Logged out successfully' };
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiBody({ type: ChangePasswordDto })
+  @ApiResponse({ status: 200, description: 'Returns updated user info' })
+  @ApiResponse({ status: 401, description: 'Invalid password' })
+  async changePassword(
+    @CurrentUser() user: any,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    const updatedUser = await this.authService.changePassword(user.id, dto);
+    return { user: updatedUser, message: 'Password changed successfully' };
   }
 
   @Get('me')

@@ -4,6 +4,7 @@ export interface ApiField {
   pricePerHour: number;
   features: string[];
   courtId: string;
+  bookingsCount?: number;
 }
 
 export interface ApiCourt {
@@ -22,6 +23,7 @@ export interface ApiTimeSlot {
   id: string;
   startTime: string;
   endTime: string;
+  status?: 'AVAILABLE' | 'PENDING' | 'CONFIRMED';
 }
 
 export interface QueryCourtsParams {

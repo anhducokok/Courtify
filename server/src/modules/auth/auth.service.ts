@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 export interface TokenPair {
   accessToken: string;
@@ -96,6 +97,41 @@ export class AuthService {
 
   async logout(userId: string): Promise<void> {
     await this.usersService.updateRefreshToken(userId, null);
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<AuthUser> {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Get user with password field
+    const userWithPassword = await this.usersService.findByEmail(user.email);
+    if (!userWithPassword) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Verify old password
+    const isPasswordValid = await bcrypt.compare(
+      dto.oldPassword,
+      userWithPassword.password,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid password');
+    }
+
+    // Update password
+    const updatedUser = await this.usersService.updatePassword(
+      userId,
+      dto.newPassword,
+    );
+
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      role: updatedUser.role,
+    };
   }
 
   private generateTokens(userId: string, email: string, name: string | null, role: string): TokenPair {

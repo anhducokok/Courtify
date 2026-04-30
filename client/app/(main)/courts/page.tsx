@@ -50,7 +50,7 @@ export default async function CourtsPage({
     qs.set(k, String(v));
   });
 
-  const res = await fetch(`${baseURL}/courts?${qs.toString()}`, { cache: 'no-store' });
+  const res = await fetch(`${baseURL}/courts?${qs.toString()}`, { next: { revalidate: 10 } });
   if (!res.ok) {
     return <CourtsPageClient courts={[]} total={0} query={sp as CourtsPageQuery} />;
   }

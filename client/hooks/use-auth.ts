@@ -15,6 +15,18 @@ function parseError(err: unknown): Error {
   return new Error("Something went wrong");
 }
 
+function getRedirectPath(role: string | undefined): string {
+  switch (role) {
+    case 'ADMIN':
+      return '/admin/dashboard';
+    case 'OWNER':
+      return '/manager/dashboard';
+    case 'USER':
+    default:
+      return '/courts';
+  }
+}
+
 export function useLoginMutation() {
   const router = useRouter();
   const { login } = useAuth();
@@ -22,12 +34,13 @@ export function useLoginMutation() {
   return useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
       try {
-        await login(email, password);
+        const result = await login(email, password);
+        return result;
       } catch (err) {
         throw parseError(err);
       }
     },
-    onSuccess: () => router.push("/courts"),
+    onSuccess: (user) => router.push(getRedirectPath(user?.role)),
   });
 }
 
@@ -38,11 +51,12 @@ export function useRegisterMutation() {
   return useMutation({
     mutationFn: async (input: { email: string; password: string; name?: string }) => {
       try {
-        await register(input.email, input.password, input.name);
+        const result = await register(input.email, input.password, input.name);
+        return result;
       } catch (err) {
         throw parseError(err);
       }
     },
-    onSuccess: () => router.push("/courts"),
+    onSuccess: (user) => router.push(getRedirectPath(user?.role)),
   });
 }

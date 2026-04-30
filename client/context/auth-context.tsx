@@ -90,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             { withCredentials: true },
         );
         setUser(data.user);
+        return data.user;
     }, []);
 
     const register = useCallback(async (email: string, password: string, name?: string) => {
@@ -99,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             { withCredentials: true },
         );
         setUser(data.user);
+        return data.user;
     }, []);
 
     const logout = useCallback(async () => {

@@ -40,10 +40,56 @@ export interface CourtOwner {
   email: string;
 }
 
+// ── Field types ────────────────────────────────────────────────────────
+
+export type FieldFeature = 'LED' | 'VIP' | 'ROOFED' | 'AIR_CONDITIONED';
+
 export interface CourtField {
   id: string;
   name: string;
   pricePerHour: number;
+  features: FieldFeature[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFieldInput {
+  name: string;
+  pricePerHour: number;
+  features?: FieldFeature[];
+}
+
+export interface UpdateFieldInput {
+  name?: string;
+  pricePerHour?: number;
+  features?: FieldFeature[];
+}
+
+// ── Field API functions ───────────────────────────────────────────────
+
+export async function getFieldsByCourt(courtId: string): Promise<CourtField[]> {
+  const { data } = await apiClient.get<CourtField[]>(`/courts/${courtId}/fields`);
+  return data;
+}
+
+export async function createField(
+  courtId: string,
+  input: CreateFieldInput,
+): Promise<CourtField> {
+  const { data } = await apiClient.post<CourtField>(`/courts/${courtId}/fields`, input);
+  return data;
+}
+
+export async function updateField(
+  fieldId: string,
+  input: UpdateFieldInput,
+): Promise<CourtField> {
+  const { data } = await apiClient.patch<CourtField>(`/fields/${fieldId}`, input);
+  return data;
+}
+
+export async function deleteField(fieldId: string): Promise<void> {
+  await apiClient.delete(`/fields/${fieldId}`);
 }
 
 export interface Court {

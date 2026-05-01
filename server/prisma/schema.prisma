@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  OWNER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+enum FieldFeature {
+  LED
+  VIP
+  ROOFED
+  AIR_CONDITIONED
+}
+
+enum PlanType {
+  AVAILABLE
+  BLOCKED
+  CUSTOM_PRICE
+}
+
+// USER
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String?
+  role          Role      @default(USER)
+  refreshToken  String?   @db.Text
+
+  bookings      Booking[]
+  courts        Court[]   @relation("OwnerCourts")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum CourtStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  INACTIVE
+}
+
+model Court {
+  id            String      @id @default(uuid())
+  name          String
+  location      String
+
+  latitude      Float?
+  longitude     Float?
+
+  status        CourtStatus @default(PENDING_APPROVAL)
+
+  averageRating Float       @default(0)
+  reviewCount   Int         @default(0)
+
+  ownerId       String?
+  owner         User?       @relation("OwnerCourts", fields: [ownerId], references: [id])
+
+  fields        Field[]   // 👈 quan trọng
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// TIMESLOT (Reusable)
+model TimeSlot {
+  id        String   @id @default(uuid())
+  startTime DateTime
+  endTime   DateTime
+
+  bookings  Booking[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([startTime, endTime])
+}
+
+// BOOKING
+model Booking {
+  id         String        @id @default(uuid())
+
+  userId     String
+  fieldId    String   
+  timeSlotId String
+
+  date       DateTime
+  status     BookingStatus @default(PENDING)
+
+  user       User     @relation(fields: [userId], references: [id])
+  field      Field    @relation(fields: [fieldId], references: [id])
+  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
+
+  createdAt  DateTime @default(now())
+
+  @@unique([fieldId, timeSlotId, date])
+  @@index([fieldId, date])
+  @@index([userId])
+}
+model Field {
+  id            String   @id @default(uuid())
+  name          String
+
+  pricePerHour  Decimal  @db.Decimal(10, 2)
+  features      FieldFeature[]
+
+  courtId       String
+  court         Court    @relation(fields: [courtId], references: [id])
+
+  bookings      Booking[]
+  bookingPlans  FieldBookingPlan[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([courtId])
+}
+
+// BOOKING PLANS — Availability & Dynamic Pricing
+model FieldBookingPlan {
+  id           String    @id @default(uuid())
+  fieldId      String
+  field        Field     @relation(fields: [fieldId], references: [id])
+
+  type         PlanType
+  priority     Int       @default(0)
+
+  startTime    Int       // Minutes from 00:00 (e.g., 480 = 08:00, 1080 = 18:00)
+  endTime      Int       // Minutes from 00:00
+
+  timezone     String    @default("Asia/Ho_Chi_Minh")
+
+  isRecurring  Boolean   @default(true)
+  daysOfWeek   Int[]     // [1,2,3,4,5,6,0] = Mon,Tue,Wed,Thu,Fri,Sat,Sun
+  specificDate DateTime? // Used when isRecurring = false (Exception rule)
+
+  priceOverride Decimal? @db.Decimal(10, 2) // Required when type = CUSTOM_PRICE
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([fieldId])
+  @@index([specificDate])
+}

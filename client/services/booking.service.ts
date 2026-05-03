@@ -29,4 +29,9 @@ export const bookingService = {
     const { data } = await api.patch<ApiBooking>(`/bookings/${id}/cancel`);
     return data;
   },
+
+  async confirmBooking(api: AxiosInstance, id: string): Promise<ApiBooking> {
+    const { data } = await api.patch<ApiBooking>(`/bookings/${id}/confirm`);
+    return data;
+  },
 };

@@ -9,9 +9,10 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const displayName = user?.name || user?.email || 'User';
-  const initials = displayName.charAt(0).toUpperCase();
+  const initials = (user?.name || user?.email || 'U').charAt(0).toUpperCase();
+  const showProfilePlaceholder = isLoading && !user;
 
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
@@ -55,15 +56,27 @@ export function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
 
           {/* User Avatar */}
           <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#D4FF00] to-[#A8D700] flex items-center justify-center font-bold text-[#1F4D2B]">
-              {initials}
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-semibold text-gray-900">
-                {displayName}
-              </p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
-            </div>
+            {showProfilePlaceholder ? (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
+                <div className="hidden sm:block space-y-2">
+                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-32 bg-gray-100 rounded animate-pulse" />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#D4FF00] to-[#A8D700] flex items-center justify-center font-bold text-[#1F4D2B]">
+                  {initials}
+                </div>
+                <div className="hidden sm:block">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {displayName}
+                  </p>
+                  <p className="text-xs text-gray-500">{user?.email}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

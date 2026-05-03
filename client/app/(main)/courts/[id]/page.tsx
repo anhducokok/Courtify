@@ -2,11 +2,13 @@
 
 import { useMemo, useState, use, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { MapPin, Star, ChevronLeft, ChevronRight, Calendar, Loader2, Clock } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCourt } from '@/hooks/use-courts';
 import { useFieldAvailability, useDayFieldAvailabilities } from '@/hooks/use-fields';
 import { useCreateBooking } from '@/hooks/use-bookings';
+import { useBooking } from '@/components/booking/booking-context';
 import tienMinh from '@/assets/tienminh.webp';
 import type { ApiField, ApiTimeSlot } from '@/types/court';
 import { HomeNavbar } from '@/components/home/navbar';
@@ -441,6 +443,8 @@ export default function CourtDetailPage({
     const dateStr = selectedDay.toISOString().split('T')[0];
     const { data: court, isLoading } = useCourt(id, dateStr);
     const fields = useMemo(() => court?.fields ?? [], [court?.fields]);
+    const router = useRouter();
+    const { updateCourt, setBookingId } = useBooking();
     const createBooking = useCreateBooking();
     const queryClient = useQueryClient();
     const { data: slots, isLoading: slotsLoading } = useFieldAvailability(selectedFieldId, dateStr);
@@ -473,18 +477,36 @@ export default function CourtDetailPage({
 
     const selectedField: ApiField | undefined = fields.find((f) => f.id === selectedFieldId);
 
+    const formattedDate = selectedDay.toLocaleDateString('vi-VN', {
+        weekday: 'long',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
+
     async function handleBook() {
         if (!selectedSlot || !selectedFieldId) return;
         setBookingError(null);
         setBookingSuccess(false);
         try {
-            await createBooking.mutateAsync({
+            const booking = await createBooking.mutateAsync({
                 fieldId: selectedFieldId,
                 timeSlotId: selectedSlot.id,
                 date: dateStr,
             });
-            setBookingSuccess(true);
-            setSelectedSlot(null);
+            setBookingId(booking.id);
+            updateCourt({
+                venueName: court?.name ?? '',
+                courtName: selectedField?.name ?? '',
+                address: court?.location ?? '',
+                fieldId: selectedFieldId,
+                fieldName: selectedField?.name ?? '',
+                timeSlotId: selectedSlot.id,
+                date: formattedDate,
+                time: `${formatSlotTime(selectedSlot.startTime)} – ${formatSlotTime(selectedSlot.endTime)}`,
+                duration: '1 giờ',
+            });
+            router.push('/booking/info');
         } catch (err) {
             const status = (err as { response?: { status?: number; data?: { message?: string; code?: string } } })?.response?.status;
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -505,13 +527,6 @@ export default function CourtDetailPage({
 
     const SERVICE_FEE = 5000;
     const pricePerHour = selectedField?.pricePerHour ?? 0;
-
-    const formattedDate = selectedDay.toLocaleDateString('vi-VN', {
-        weekday: 'long',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
 
     if (isLoading) {
         return (

@@ -38,3 +38,16 @@ export function useCancelBooking() {
     },
   });
 }
+
+export function useConfirmBooking() {
+  const api = useApiClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => bookingService.confirmBooking(api, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['field-availability'] });
+    },
+  });
+}

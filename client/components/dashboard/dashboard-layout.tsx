@@ -1,6 +1,7 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useLayoutEffect } from 'react';
+import { useAuth } from '@/context/auth-context';
 import { AdminSidebar } from './admin-sidebar';
 import { DashboardHeader } from './dashboard-header';
 
@@ -17,6 +18,12 @@ export function DashboardLayout({
   headerTitle,
   headerSubtitle,
 }: DashboardLayoutProps) {
+  const { revalidateSession } = useAuth();
+
+  useLayoutEffect(() => {
+    void revalidateSession();
+  }, [revalidateSession]);
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}

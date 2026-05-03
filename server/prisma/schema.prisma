@@ -14,6 +14,7 @@ enum Role {
 
 enum BookingStatus {
   PENDING
+  PENDING_CONFIRMATION
   CONFIRMED
   CANCELLED
 }
@@ -41,6 +42,7 @@ model User {
 
   bookings      Booking[]
   courts        Court[]   @relation("OwnerCourts")
+  wallet        Wallet?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -102,11 +104,54 @@ model Booking {
   field      Field    @relation(fields: [fieldId], references: [id])
   timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
 
+  walletTransactions WalletTransaction[]
+
   createdAt  DateTime @default(now())
 
   @@unique([fieldId, timeSlotId, date])
   @@index([fieldId, date])
   @@index([userId])
+}
+
+enum TransactionType {
+  RENTAL_PENDING
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Wallet {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pendingBalance   Decimal  @default(0) @db.Decimal(14, 2)
+  availableBalance Decimal  @default(0) @db.Decimal(14, 2)
+  transactions     WalletTransaction[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id           String            @id @default(uuid())
+  walletId     String
+  wallet       Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  bookingId    String?
+  booking      Booking?          @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  type         TransactionType
+  status       TransactionStatus @default(PENDING)
+  amount       Decimal           @db.Decimal(14, 2)
+  sepayOrderId String?           @unique
+  sepayTransId String?
+  sepayRawData Json?
+  createdAt    DateTime          @default(now())
+  confirmedAt  DateTime?
+
+  @@index([walletId])
+  @@index([bookingId])
+  @@index([status, createdAt])
 }
 model Field {
   id            String   @id @default(uuid())

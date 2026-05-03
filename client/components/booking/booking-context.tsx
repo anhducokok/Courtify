@@ -3,12 +3,16 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 
 export interface BookingState {
+  bookingId?: string;
   court: {
     venueName: string;
     courtName: string;
     address: string;
+    fieldId: string;
+    fieldName: string;
     date: string;
     time: string;
+    timeSlotId: string;
     duration: string;
   };
   contact: {
@@ -32,6 +36,7 @@ export interface BookingState {
 
 interface BookingContextValue {
   state: BookingState;
+  setBookingId: (id: string) => void;
   updateCourt: (court: Partial<BookingState['court']>) => void;
   updateContact: (contact: Partial<BookingState['contact']>) => void;
   updatePayment: (payment: Partial<BookingState['payment']>) => void;
@@ -41,9 +46,12 @@ const defaultState: BookingState = {
   court: {
     venueName: 'Sân Cầu Lông Hưng Dũng',
     courtName: 'Sân A2',
+    fieldId: '',
+    fieldName: 'Sân A2',
     address: '12 Lê Duẩn, Vinh',
     date: 'Thứ 5, 24/04/2025',
     time: '16:00 – 17:00',
+    timeSlotId: '',
     duration: '1 giờ',
   },
   contact: {
@@ -70,6 +78,9 @@ const BookingContext = createContext<BookingContextValue | null>(null);
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<BookingState>(defaultState);
 
+  const setBookingId = (bookingId: string) =>
+    setState((s) => ({ ...s, bookingId }));
+
   const updateCourt = (court: Partial<BookingState['court']>) =>
     setState((s) => ({ ...s, court: { ...s.court, ...court } }));
 
@@ -80,7 +91,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, payment: { ...s.payment, ...payment } }));
 
   return (
-    <BookingContext.Provider value={{ state, updateCourt, updateContact, updatePayment }}>
+    <BookingContext.Provider value={{ state, setBookingId, updateCourt, updateContact, updatePayment }}>
       {children}
     </BookingContext.Provider>
   );

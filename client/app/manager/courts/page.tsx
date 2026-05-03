@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Court,
   CreateCourtInput,
@@ -14,6 +15,7 @@ import {
   deleteField,
   getFieldsByCourt,
 } from '@/lib/api-client';
+import { useAuth } from '@/context/auth-context';
 import {
   MapPin,
   Plus,
@@ -236,6 +238,9 @@ function FieldModal({ mode, courtId, field, onClose, onSaved }: FieldModalProps)
 }
 
 export default function ManagerCourtsPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
   const [courts, setCourts] = useState<Court[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -261,20 +266,56 @@ export default function ManagerCourtsPage() {
   });
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Redirect if not authenticated (wait for auth to finish loading first)
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/');
+    }
+  }, [authLoading, user, router]);
+
   const fetchCourts = useCallback(async () => {
     try {
       const data = await getMyCourts();
       setCourts(data);
-    } catch {
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        router.push('/');
+        return;
+      }
       setError('Không thể tải danh sách sân.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
-    fetchCourts();
-  }, [fetchCourts]);
+    if (authLoading) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    void (async () => {
+      try {
+        const data = await getMyCourts();
+        if (!cancelled) setCourts(data);
+      } catch (err: any) {
+        if (cancelled) return;
+        if (err?.response?.status === 401) {
+          router.push('/');
+          return;
+        }
+        setError('Không thể tải danh sách sân.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user, router]);
 
   // ── Load fields for a court when expanded ────────────────────────
   const toggleCourt = useCallback(async (courtId: string) => {
@@ -404,7 +445,7 @@ export default function ManagerCourtsPage() {
       </div>
 
       {/* Court list */}
-      {loading ? (
+      {authLoading || loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-[#1F4D2B]" />
         </div>

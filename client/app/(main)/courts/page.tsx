@@ -40,7 +40,7 @@ export default async function CourtsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8080';
   const sp = await searchParams;
   const params = buildParams(sp);
 
@@ -50,7 +50,12 @@ export default async function CourtsPage({
     qs.set(k, String(v));
   });
 
-  const res = await fetch(`${baseURL}/courts?${qs.toString()}`, { next: { revalidate: 10 } });
+  let res: Response;
+  try {
+    res = await fetch(`${baseURL}/courts?${qs.toString()}`, { next: { revalidate: 10 } });
+  } catch {
+    return <CourtsPageClient courts={[]} total={0} query={sp as CourtsPageQuery} />;
+  }
   if (!res.ok) {
     return <CourtsPageClient courts={[]} total={0} query={sp as CourtsPageQuery} />;
   }

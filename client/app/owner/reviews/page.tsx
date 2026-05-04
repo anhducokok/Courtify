@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Star, ThumbsUp, Reply, StarFilled } from 'lucide-react';
+import { Star, ThumbsUp, Reply } from 'lucide-react';
 
 const REVIEWS = [
   { id: '1', customer: 'Nguyễn Văn Minh', court: 'Sân A1', rating: 5, date: '22/04/2025', text: 'Sân rất đẹp, đèn LED sáng, nhân viên nhiệt tình. Sẽ quay lại!', replies: 0 },
@@ -17,7 +17,7 @@ function StarRow({ value }: { value: number }) {
     <div className="flex items-center gap-0.5">
       {Array.from({ length: 5 }).map((_, i) =>
         i < value ? (
-          <StarFilled key={i} className="w-3.5 h-3.5 text-[#D4FF00]" />
+          <Star key={i} className="w-3.5 h-3.5 text-[#D4FF00]" fill="#D4FF00" />
         ) : (
           <Star key={i} className="w-3.5 h-3.5 text-gray-200" />
         )
@@ -40,7 +40,7 @@ export default function OwnerReviewsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold font-lexend text-[#085041]">Đánh giá</h1>
         <div className="flex items-center gap-2 bg-[#0F6E56]/5 px-4 py-2 rounded-xl">
-          <StarFilled className="w-5 h-5 text-[#D4FF00]" />
+          <Star className="w-5 h-5 text-[#D4FF00]" fill="#D4FF00" />
           <span className="text-xl font-bold font-lexend text-[#0F6E56]">{avgRating}</span>
           <span className="text-sm text-gray-400">/ 5</span>
         </div>

@@ -51,7 +51,8 @@ export default function AdminCourtsPage() {
   }, []);
 
   useEffect(() => {
-    fetchPending();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchPending();
   }, [fetchPending]);
 
   const handleAction = async (courtId: string, status: CourtStatus) => {

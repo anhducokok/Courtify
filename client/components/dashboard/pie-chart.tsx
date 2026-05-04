@@ -13,21 +13,25 @@ interface PieChartProps {
 export function PieChart({ data }: PieChartProps) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
-  // Calculate angles for pie slices
-  let currentAngle = 0;
-  const slices = data.map((item) => {
+  // Calculate angles for pie slices using reduce instead of map with mutation
+  const slices = data.reduce<Array<{
+    label: string;
+    value: number;
+    color: string;
+    percentage: string;
+    startAngle: number;
+    endAngle: number;
+  }>>((acc, item) => {
     const sliceAngle = (item.value / total) * 360;
-    const startAngle = currentAngle;
-    const endAngle = currentAngle + sliceAngle;
-    currentAngle = endAngle;
-
-    return {
+    const startAngle = acc.length > 0 ? acc[acc.length - 1].endAngle : 0;
+    const endAngle = startAngle + sliceAngle;
+    return [...acc, {
       ...item,
       percentage: ((item.value / total) * 100).toFixed(1),
       startAngle,
       endAngle,
-    };
-  });
+    }];
+  }, []);
 
   const radius = 80;
   const centerX = 100;

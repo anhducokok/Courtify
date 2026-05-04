@@ -14,6 +14,7 @@ import {
   updateField,
   deleteField,
   getFieldsByCourt,
+  FieldFeature,
 } from '@/lib/api-client';
 import { useAuth } from '@/context/auth-context';
 import {
@@ -120,9 +121,9 @@ function FieldModal({ mode, courtId, field, onClose, onSaved }: FieldModalProps)
   const toggleFeature = (f: string) => {
     setForm((prev) => ({
       ...prev,
-      features: prev.features?.includes(f as any)
-        ? (prev.features as string[]).filter((x) => x !== f)
-        : [...(prev.features ?? []), f],
+      features: prev.features?.includes(f as FieldFeature)
+        ? (prev.features as FieldFeature[]).filter((x) => x !== f)
+        : ([...(prev.features ?? []), f] as FieldFeature[]),
     }));
   };
 
@@ -193,7 +194,7 @@ function FieldModal({ mode, courtId, field, onClose, onSaved }: FieldModalProps)
             <p className="block text-sm font-medium text-gray-700 mb-2">Tiện ích</p>
             <div className="flex flex-wrap gap-2">
               {FEATURES.map((f) => {
-                const active = form.features?.includes(f.value as any);
+                const active = form.features?.includes(f.value as FieldFeature);
                 return (
                   <button
                     key={f.value}
@@ -277,8 +278,9 @@ export default function ManagerCourtsPage() {
     try {
       const data = await getMyCourts();
       setCourts(data);
-    } catch (err: any) {
-      if (err?.response?.status === 401) {
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { status?: number } };
+      if (axiosError?.response?.status === 401) {
         router.push('/');
         return;
       }
@@ -291,6 +293,7 @@ export default function ManagerCourtsPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       return;
     }
@@ -301,9 +304,10 @@ export default function ManagerCourtsPage() {
       try {
         const data = await getMyCourts();
         if (!cancelled) setCourts(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (cancelled) return;
-        if (err?.response?.status === 401) {
+        const axiosError = err as { response?: { status?: number } };
+        if (axiosError?.response?.status === 401) {
           router.push('/');
           return;
         }
@@ -574,7 +578,7 @@ export default function ManagerCourtsPage() {
                         </div>
                       ) : fields.length === 0 ? (
                         <div className="text-center py-6 text-sm text-gray-400">
-                          Chưa có sân con nào. Bấm "Thêm sân" để bắt đầu.
+                          Chưa có sân con nào. Bấm &quot;Thêm sân&quot; để bắt đầu.
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

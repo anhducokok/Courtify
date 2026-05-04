@@ -39,8 +39,9 @@ export const authOptions: NextAuthOptions = {
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
           };
-        } catch (error: any) {
-          throw new Error(error?.response?.data?.message || 'Invalid credentials');
+        } catch (error: unknown) {
+          const err = error as { response?: { data?: { message?: string } } };
+          throw new Error(err?.response?.data?.message || 'Invalid credentials');
         }
       },
     }),
@@ -74,7 +75,7 @@ export const authOptions: NextAuthOptions = {
       // refreshToken is intentionally NOT included here.
       session.accessToken = token.accessToken as string;
       session.error = token.error as string | undefined;
-      session.user = { ...session.user, id: token.id as string };
+      session.user = { ...session.user, id: token.id as string, email: token.email as string };
       return session;
     },
   },
@@ -93,12 +94,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ nextauth: string[] }> },
 ) {
-  return handler(request, { params: await params } as any);
+  return handler(request, { params: await params });
 }
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ nextauth: string[] }> },
 ) {
-  return handler(request, { params: await params } as any);
+  return handler(request, { params: await params });
 }

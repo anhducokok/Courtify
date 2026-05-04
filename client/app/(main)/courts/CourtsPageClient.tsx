@@ -201,15 +201,11 @@ export function CourtsPageClient({
                         ) : (
                           <PaginationItem key={item}>
                             <PaginationLink
-                              asChild
+                              href={`/courts?${new URLSearchParams({ ...Object.fromEntries(sp.entries()), page: String(item) }).toString()}`}
                               isActive={item === page}
                               className="cursor-pointer"
                             >
-                              <Link
-                                href={`/courts?${new URLSearchParams({ ...Object.fromEntries(sp.entries()), page: String(item) }).toString()}`}
-                              >
-                                {item}
-                              </Link>
+                              {item}
                             </PaginationLink>
                           </PaginationItem>
                         ),

@@ -339,7 +339,7 @@ export default function BookingInfoPage() {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
-                  Tiếp theo: Thanh toán
+                  Tiếp theo
                   <svg viewBox="0 0 16 16" className="w-4 h-4 flex-shrink-0">
                     <path
                       d="M3 8h10M9 4l4 4-4 4"

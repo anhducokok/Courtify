@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useBooking } from '@/components/booking/booking-context';
 import { useSepayCheckout, useSepayRedirect } from '@/hooks/use-sepay';
 import { useConfirmBooking } from '@/hooks/use-bookings';
@@ -106,7 +106,7 @@ function SepayPaymentForm({
             <span className="font-mono font-semibold text-gray-900">
               {(formFields.account_no as string) || 'Đang tải...'}
             </span>
-            {formFields.account_no && (
+            {!!formFields.account_no && (
               <button
                 onClick={handleCopyAccount}
                 className="p-1 hover:bg-gray-200 rounded transition-colors"
@@ -188,7 +188,6 @@ export default function BookingPaymentPage() {
   const { checkoutData, isLoading, error, initiateCheckout, clearCheckout } = useSepayCheckout();
   const { redirectStatus, orderId, clearStatus } = useSepayRedirect();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(
     (state.payment.method as PaymentMethod) ?? 'sepay',

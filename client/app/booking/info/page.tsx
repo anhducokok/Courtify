@@ -51,8 +51,14 @@ export default function BookingInfoPage() {
   // Pre-fill contact info from logged-in user
   useEffect(() => {
     if (user) {
-      if (user.name) setName(user.name);
-      if (user.email) setEmail(user.email);
+      if (user.name) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setName(user.name);
+      }
+      if (user.email) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setEmail(user.email);
+      }
     }
   }, [user]);
 

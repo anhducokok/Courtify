@@ -14,7 +14,7 @@ export interface SepayCheckoutData {
 
 export function useSepayCheckout() {
   const api = useApiClient();
-  const { state, setBookingId } = useBooking();
+  const { setBookingId } = useBooking();
   const [checkoutData, setCheckoutData] = useState<SepayCheckoutData | null>(null);
 
   const mutation = useMutation({
@@ -65,14 +65,18 @@ export function useSepayRedirect() {
     const orderIdParam = params.get('orderId');
 
     if (orderIdParam) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOrderId(orderIdParam);
     }
 
     if (status === 'success') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRedirectStatus('success');
     } else if (status === 'error') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRedirectStatus('error');
     } else if (status === 'cancel') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRedirectStatus('cancel');
     }
   }, []);

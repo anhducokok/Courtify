@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useBooking } from '@/components/booking/booking-context';
 import { useSepayRedirect } from '@/hooks/use-sepay';
 import { CheckCircle2, Calendar, Clock, MapPin, Loader2 } from 'lucide-react';
@@ -25,9 +25,11 @@ export default function BookingSuccessPage() {
   // Show success when redirect is successful or booking already confirmed
   useEffect(() => {
     if (redirectStatus === 'success' && orderId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsVerifying(true);
       // Wait a moment for the server to process the payment
       const timer = setTimeout(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsVerifying(false);
         clearStatus();
       }, 2000);

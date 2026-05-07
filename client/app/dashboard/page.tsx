@@ -1,17 +1,34 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { DashboardNavbar } from '@/components/dashboard/navbar';
 
 export default function DashboardPage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isInitialized } = useAuth();
+  const router = useRouter();
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  useEffect(() => {
+    // Wait for auth to be initialized, then check user
+    if (isInitialized && !user) {
+      router.replace('/login');
+    }
+  }, [isInitialized, user, router]);
+
+  if (isLoading || !isInitialized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-3 border-[#2d6a4f] border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-gray-500">Đang tải...</span>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
-    return null;
+    return null; // Will redirect via useEffect
   }
 
   return (

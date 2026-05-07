@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 import { LayoutDashboard, MapPin, CalendarDays, TrendingUp, Star, Clock, BadgeCheck } from 'lucide-react';
 import { OwnerStatCard } from '@/components/owner/owner-stat-card';
 import { RevenueBarChart } from '@/components/owner/revenue-bar-chart';
@@ -61,8 +64,28 @@ function StarRating({ value }: { value: number }) {
 }
 
 export default function OwnerDashboardPage() {
+  const { user, isLoading, isInitialized } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isInitialized && !user) {
+      router.replace('/login');
+    }
+  }, [isInitialized, user, router]);
+
   const handleConfirm = (id: string) => console.log('confirm', id);
   const handleReject = (id: string) => console.log('reject', id);
+
+  if (isLoading || !isInitialized || !user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-3 border-[#2d6a4f] border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-gray-500">Đang tải...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

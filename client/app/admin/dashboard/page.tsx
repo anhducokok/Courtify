@@ -1,5 +1,9 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
+import { DashboardLayout } from '@/components/dashboard/dashboard-layout';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { ChartCard } from '@/components/dashboard/chart-card';
 import { RecentActivityCard } from '@/components/dashboard/recent-activity-card';
@@ -12,9 +16,30 @@ import {
   TrendingUp,
   MoreVertical,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 export default function AdminDashboard() {
+  const { user, isLoading, isInitialized } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isInitialized && !user) {
+      router.replace('/login');
+    }
+  }, [isInitialized, user, router]);
+
+  if (isLoading || !isInitialized || !user) {
+    return (
+      <DashboardLayout headerTitle="Admin Dashboard">
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-3 border-[#2d6a4f] border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-gray-500">Đang tải...</span>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   // Mock data
   const stats = [
     {
@@ -119,7 +144,8 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <>
+    <DashboardLayout headerTitle="Admin Dashboard" headerSubtitle="Quản lý hệ thống">
+      <>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => (
@@ -169,6 +195,7 @@ export default function AdminDashboard() {
           viewAllLink="/admin/reports"
         />
       </div>
-    </>
+      </>
+    </DashboardLayout>
   );
 }

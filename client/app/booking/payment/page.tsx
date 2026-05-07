@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useBooking } from '@/components/booking/booking-context';
 import { useSepayCheckout, useSepayRedirect } from '@/hooks/use-sepay';
 import { useConfirmBooking } from '@/hooks/use-bookings';
-import { BookingSummaryCard } from '@/components/booking/booking-summary-card';
 import {
   Loader2,
   CheckCircle2,
@@ -184,7 +183,7 @@ function SepayPaymentForm({
 }
 
 export default function BookingPaymentPage() {
-  const { state, updatePayment, resetBooking } = useBooking();
+  const { state, resetBooking } = useBooking();
   const confirmBooking = useConfirmBooking();
   const { checkoutData, isLoading, error, initiateCheckout, clearCheckout } = useSepayCheckout();
   const { redirectStatus, orderId, clearStatus } = useSepayRedirect();
@@ -203,6 +202,47 @@ export default function BookingPaymentPage() {
   const [step, setStep] = useState<CheckoutStep>('select');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
+  const effectiveDiscount = promo.applied ? promo.discount : 0;
+  const total = Math.max(0, state.pricing.subtotal + state.pricing.serviceFee - effectiveDiscount);
+
+  const handleSelectMethod = (method: PaymentMethod) => {
+    setSelectedMethod(method);
+    setErrorMessage('');
+  };
+
+  const handlePaymentSuccess = useCallback(async () => {
+    try {
+      if (state.bookingId) {
+        await confirmBooking.mutateAsync(state.bookingId);
+      }
+      setStep('success');
+      setTimeout(() => {
+        resetBooking();
+        router.push('/booking/success');
+      }, 1500);
+    } catch {
+      setErrorMessage('Không thể xác nhận đặt sân. Vui lòng liên hệ hỗ trợ.');
+      setStep('select');
+    }
+  }, [state.bookingId, confirmBooking, resetBooking, router]);
+
+  const handleCashPayment = async () => {
+    try {
+      if (state.bookingId) {
+        await confirmBooking.mutateAsync(state.bookingId);
+      }
+      resetBooking();
+      router.push('/booking/success');
+    } catch {
+      setErrorMessage('Không thể xác nhận đặt sân. Vui lòng thử lại.');
+    }
+  };
+
+  const handleCancelQR = () => {
+    clearCheckout();
+    setStep('select');
+  };
+
   // Guard: redirect if no active booking
   useEffect(() => {
     if (!state.bookingId && step === 'select') {
@@ -213,85 +253,42 @@ export default function BookingPaymentPage() {
   // Handle SePay redirect status
   useEffect(() => {
     if (redirectStatus === 'success' && orderId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep('processing');
-      // The wallet transaction is already created, just confirm the booking
       handlePaymentSuccess();
     } else if (redirectStatus === 'error') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setErrorMessage('Thanh toán thất bại. Vui lòng thử lại.');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep('select');
       clearStatus();
     } else if (redirectStatus === 'cancel') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep('select');
       clearStatus();
     }
-  }, [redirectStatus, orderId]);
+  }, [redirectStatus, orderId, handlePaymentSuccess, clearStatus]);
 
-  const effectiveDiscount = promo.applied ? promo.discount : 0;
-  const total = Math.max(0, state.pricing.subtotal + state.pricing.serviceFee - effectiveDiscount);
-
-  const handleSelectMethod = (method: PaymentMethod) => {
-    setSelectedMethod(method);
-    setErrorMessage('');
-  };
+  // Show error from checkout init
+  useEffect(() => {
+    if (error) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setErrorMessage('Không thể khởi tạo thanh toán. Vui lòng thử lại.');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStep('select');
+    }
+  }, [error]);
 
   const handleConfirmPayment = async () => {
     setErrorMessage('');
 
     if (selectedMethod === 'sepay') {
-      // Start Sepay checkout
       setStep('qr');
       initiateCheckout(total);
     } else {
-      // Cash payment - direct booking confirm
       await handleCashPayment();
     }
   };
-
-  const handleSepayCallback = () => {
-    // User returned from SePay gateway
-    setStep('processing');
-  };
-
-  const handlePaymentSuccess = async () => {
-    try {
-      if (state.bookingId) {
-        await confirmBooking.mutateAsync(state.bookingId);
-      }
-      setStep('success');
-      setTimeout(() => {
-        resetBooking();
-        router.push('/booking/success');
-      }, 1500);
-    } catch (err) {
-      setErrorMessage('Không thể xác nhận đặt sân. Vui lòng liên hệ hỗ trợ.');
-      setStep('select');
-    }
-  };
-
-  const handleCashPayment = async () => {
-    try {
-      if (state.bookingId) {
-        await confirmBooking.mutateAsync(state.bookingId);
-      }
-      resetBooking();
-      router.push('/booking/success');
-    } catch (err) {
-      setErrorMessage('Không thể xác nhận đặt sân. Vui lòng thử lại.');
-    }
-  };
-
-  const handleCancelQR = () => {
-    clearCheckout();
-    setStep('select');
-  };
-
-  // Show error from checkout init
-  useEffect(() => {
-    if (error) {
-      setErrorMessage('Không thể khởi tạo thanh toán. Vui lòng thử lại.');
-      setStep('select');
-    }
-  }, [error]);
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">

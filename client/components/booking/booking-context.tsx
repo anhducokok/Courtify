@@ -40,6 +40,7 @@ interface BookingContextValue {
   updateCourt: (court: Partial<BookingState['court']>) => void;
   updateContact: (contact: Partial<BookingState['contact']>) => void;
   updatePayment: (payment: Partial<BookingState['payment']>) => void;
+  resetBooking: () => void;
 }
 
 const defaultState: BookingState = {
@@ -90,8 +91,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const updatePayment = (payment: Partial<BookingState['payment']>) =>
     setState((s) => ({ ...s, payment: { ...s.payment, ...payment } }));
 
+  const resetBooking = () => setState(defaultState);
+
   return (
-    <BookingContext.Provider value={{ state, setBookingId, updateCourt, updateContact, updatePayment }}>
+    <BookingContext.Provider value={{ state, setBookingId, updateCourt, updateContact, updatePayment, resetBooking }}>
       {children}
     </BookingContext.Provider>
   );

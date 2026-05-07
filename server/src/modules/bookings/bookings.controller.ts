@@ -76,6 +76,19 @@ export class BookingsController {
     return this.bookingsService.cancel(id, user.id, user.role);
   }
 
+  @Patch(':id/confirm')
+  @ApiOperation({ summary: 'Confirm a pending booking' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiResponse({ status: 200, description: 'Booking confirmed' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
+  @ApiResponse({ status: 409, description: 'Cannot confirm this booking' })
+  confirm(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: Role },
+  ) {
+    return this.bookingsService.confirm(id, user.id, user.role);
+  }
+
   @Patch(':id/status')
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)

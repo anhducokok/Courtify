@@ -120,6 +120,7 @@ export class AuthController {
     return { user: updatedUser, message: 'Password changed successfully' };
   }
 
+  @Public()
   @Get('me')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get current authenticated user' })

@@ -5,6 +5,7 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useRef,
     useState,
 } from 'react';
 import { publicClient } from '@/lib/public-client';
@@ -19,11 +20,11 @@ export interface AuthUser {
 interface AuthContextValue {
     user: AuthUser | null;
     isLoading: boolean;
+    isInitialized: boolean;
     login: (email: string, password: string) => Promise<AuthUser>;
     register: (email: string, password: string, name?: string) => Promise<AuthUser>;
     logout: () => Promise<void>;
     refresh: () => Promise<void>;
-    /** Call when dashboard shell mounts (manager/admin) so /auth/me runs again after client navigation. */
     revalidateSession: () => Promise<void>;
 }
 
@@ -32,66 +33,64 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const refreshAttemptRef = useRef(false);
 
-    /** Restore session from cookies; optional refresh on 401. */
-    const syncSession = useCallback(async (isCancelled: () => boolean) => {
-        try {
-            const { data } = await publicClient.get<AuthUser>('/auth/me', {
-                withCredentials: true,
-            });
-            if (!isCancelled()) setUser(data);
-        } catch (err: unknown) {
-            const status = (err as { response?: { status?: number } })?.response?.status;
-            if (status === 401) {
-                try {
-                    await publicClient.post('/auth/refresh', {}, { withCredentials: true });
-                    const { data } = await publicClient.get<AuthUser>('/auth/me', {
-                        withCredentials: true,
-                    });
-                    if (!isCancelled()) setUser(data);
-                } catch {
-                    if (!isCancelled()) setUser(null);
-                }
-            } else {
-                if (!isCancelled()) setUser(null);
-            }
-        } finally {
-            if (!isCancelled()) setIsLoading(false);
-        }
-    }, []);
-
-    // Fetch current user from /auth/me — uses access_token cookie automatically
-    const fetchMe = useCallback(async () => {
+    /** Restore session from cookies; try refresh once if access token expired. */
+    const syncSession = useCallback(async (silently = true) => {
         try {
             const { data } = await publicClient.get<AuthUser>('/auth/me', {
                 withCredentials: true,
             });
             setUser(data);
-        } catch {
+            return true;
+        } catch (err: unknown) {
+            const status = (err as { response?: { status?: number } })?.response?.status;
+
+            // Try refresh only once if access token expired (401) and not already tried
+            if (status === 401 && !refreshAttemptRef.current) {
+                refreshAttemptRef.current = true;
+                try {
+                    await publicClient.post('/auth/refresh', {}, { withCredentials: true });
+                    const { data } = await publicClient.get<AuthUser>('/auth/me', {
+                        withCredentials: true,
+                    });
+                    setUser(data);
+                    return true;
+                } catch {
+                    if (!silently) console.error('Session refresh failed');
+                    setUser(null);
+                    return false;
+                }
+            }
+
+            if (!silently) console.error('Session sync failed:', status);
             setUser(null);
+            return false;
+        } finally {
+            setIsLoading(false);
+            setIsInitialized(true);
+            refreshAttemptRef.current = false;
         }
     }, []);
 
     const refresh = useCallback(async () => {
         try {
             await publicClient.post('/auth/refresh', {}, { withCredentials: true });
-            await fetchMe();
+            await syncSession(true);
         } catch {
             setUser(null);
         }
-    }, [fetchMe]);
+    }, [syncSession]);
 
-    // On mount: try to restore session, silently refresh if access token is expired
+    // On mount: try to restore session
     useEffect(() => {
-        let cancelled = false;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-    void syncSession(() => cancelled);
-        return () => { cancelled = true; };
+        void syncSession(false);
     }, [syncSession]);
 
     const revalidateSession = useCallback(async () => {
         setIsLoading(true);
-        await syncSession(() => false);
+        await syncSession(false);
     }, [syncSession]);
 
     const login = useCallback(async (email: string, password: string) => {
@@ -124,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AuthContext.Provider
-            value={{ user, isLoading, login, register, logout, refresh, revalidateSession }}
+            value={{ user, isLoading, isInitialized, login, register, logout, refresh, revalidateSession }}
         >
             {children}
         </AuthContext.Provider>

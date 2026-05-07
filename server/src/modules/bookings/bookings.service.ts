@@ -99,6 +99,20 @@ export class BookingsService {
     });
   }
 
+  async confirm(id: string, userId: string, role: Role) {
+    const booking = await this.findOne(id, userId, role);
+
+    if (booking.status !== 'PENDING') {
+      throw new ConflictException('Only pending bookings can be confirmed');
+    }
+
+    return this.prisma.booking.update({
+      where: { id },
+      data: { status: 'CONFIRMED' },
+      include: { field: { include: { court: true } }, timeSlot: true },
+    });
+  }
+
   async updateStatus(id: string, dto: UpdateBookingStatusDto) {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) {

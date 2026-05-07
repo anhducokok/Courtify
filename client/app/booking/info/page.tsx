@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { useBooking } from '@/components/booking/booking-context';
@@ -39,16 +39,28 @@ export default function BookingInfoPage() {
   const { state, updateContact } = useBooking();
   const router = useRouter();
 
-  const [name, setName] = useState(state.contact.name);
-  const [phone, setPhone] = useState(state.contact.phone);
-  const [email, setEmail] = useState(state.contact.email);
-  const [note, setNote] = useState(state.contact.note);
-  const [saveInfo, setSaveInfo] = useState(state.contact.saveInfo);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [note, setNote] = useState('');
+  const [saveInfo, setSaveInfo] = useState(false);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const phoneMasked = maskPhone(phone);
+  // Pre-fill contact info from logged-in user
+  useEffect(() => {
+    if (user) {
+      if (user.name) setName(user.name);
+      if (user.email) setEmail(user.email);
+    }
+  }, [user]);
+
+  const phoneMasked = phone ? maskPhone(phone) : '';
+
+  const maskedEmail = email
+    ? email.replace(/(.{2}).*(@.*)/, '$1***$2')
+    : '';
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -97,7 +109,11 @@ export default function BookingInfoPage() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-800">
-                Bạn đang đăng nhập với số {phoneMasked}
+                {phone
+                  ? `Bạn đang đăng nhập với số ${phoneMasked}`
+                  : user
+                    ? `Bạn đang đăng nhập với ${maskedEmail}`
+                    : 'Vui lòng nhập thông tin liên hệ'}
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
                 Thông tin đã được điền sẵn từ tài khoản của bạn.
